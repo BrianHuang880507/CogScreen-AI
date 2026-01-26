@@ -1,0 +1,69 @@
+body {
+  font-family: "Noto Sans", "Segoe UI", sans-serif;
+  background: #f5f7fb;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.panel {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+button {
+  background: #2f6fed;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button[disabled] {
+  background: #9fb5e9;
+  cursor: not-allowed;
+}
+
+.disclaimer {
+  background: #fff3cd;
+  border-left: 4px solid #f6c343;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+pre {
+  background: #111827;
+  color: #e5e7eb;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+label {
+  display: block;
+  margin-bottom: 12px;
+}
+
+input, select {
+  display: block;
+  margin-top: 6px;
+  padding: 6px 8px;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
