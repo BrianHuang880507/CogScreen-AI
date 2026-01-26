@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cognitive Q&A Screening (Research Prototype)</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Cognitive Q&A Screening</h1>
+      <p class="disclaimer">
+        重要聲明：這是一個研究／輔助篩檢原型，不能用於失智症診斷或取代臨床評估。結果必須由合格醫事人員解讀。
+      </p>
+
+      <section class="panel">
+        <h2>建立 Session</h2>
+        <label>
+          匿名代碼
+          <input id="patientId" type="text" placeholder="P001" />
+        </label>
+        <label>
+          量表
+          <select id="instrument">
+            <option value="">(未選擇)</option>
+            <option value="ad8">AD-8</option>
+            <option value="spmsq">SPMSQ</option>
+            <option value="mmse">MMSE</option>
+            <option value="moca">MoCA</option>
+          </select>
+        </label>
+        <button id="createSession">建立</button>
+      </section>
+
+      <section class="panel">
+        <h2>題目播放與錄音</h2>
+        <p id="questionText">尚未開始</p>
+        <audio id="questionAudio" controls></audio>
+        <div class="controls">
+          <button id="loadQuestion">取得下一題</button>
+          <button id="startRecording" disabled>開始錄音</button>
+          <button id="stopRecording" disabled>停止錄音</button>
+        </div>
+        <p id="status"></p>
+      </section>
+
+      <section class="panel">
+        <h2>最近一次結果</h2>
+        <pre id="result"></pre>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
