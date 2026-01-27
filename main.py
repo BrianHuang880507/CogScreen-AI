@@ -47,9 +47,10 @@ def main() -> None:
     output_path = Path(args.output)
     write_json(output_path, report)
 
+    payload = {"info": report}
     response = requests.post(
         args.api_url,
-        json=report,
+        json=payload,
         headers={"Content-Type": "application/json"},
         timeout=30,
     )
