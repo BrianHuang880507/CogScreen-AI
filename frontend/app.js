@@ -154,5 +154,32 @@ async function uploadResponse(blob) {
   });
   const data = await response.json();
   resultEl.textContent = JSON.stringify(data, null, 2);
-  setStatus("完成。可取得下一題。\n");
+  setStatus("Response saved.");
+  await checkAndSubmitReport();
+}
+
+
+async function checkAndSubmitReport() {
+  if (!sessionId) {
+    return;
+  }
+  const progressResponse = await fetch(`/api/sessions/${sessionId}/progress`);
+  if (!progressResponse.ok) {
+    return;
+  }
+  const progress = await progressResponse.json();
+  if (!progress.is_complete) {
+    return;
+  }
+  setStatus("Session complete. Submitting report...");
+  const submitResponse = await fetch(`/api/sessions/${sessionId}/submit`, {
+    method: "POST",
+  });
+  if (!submitResponse.ok) {
+    setStatus("Report submission failed.");
+    return;
+  }
+  const submitData = await submitResponse.json();
+  resultEl.textContent = JSON.stringify(submitData, null, 2);
+  setStatus("Report submitted.");
 }

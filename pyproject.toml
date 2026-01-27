@@ -21,3 +21,6 @@ dev = [
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+
+[tool.setuptools]
+packages = ["backend", "backend.app", "backend.app.instruments"]

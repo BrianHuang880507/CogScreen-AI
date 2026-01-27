@@ -16,6 +16,7 @@ This project is a **research/assisted screening** prototype for measuring spoken
   - Energy/VAD estimate from client-side audio analysis (`reaction_time_vad_ms`).
 - Rule-based scoring + LLM judge with structured outputs.
 - SQLite storage (sessions/responses/instrument_scores) + CSV export.
+- Auto-submit full report when a session is complete.
 
 ## Licensing / Training Notices (Very Important)
 
@@ -32,18 +33,26 @@ backend/
     api.py
     main.py
     models.py
+    question_bank.py
+    reporting.py
     storage.py
     transcribe.py
     reaction_time.py
     scoring_rules.py
     llm_judge.py
     instruments/
+scripts/
+  tts_questions.py
 frontend/
   index.html
   app.js
   styles.css
 static/
   questions/
+data/
+  AD8_questions.json
+  MMSE_questions.json
+  SPMSQ_questions.json
 ```
 
 ## Setup
@@ -71,4 +80,41 @@ pytest
 
 ## Notes on Question Bank
 
-Place question audio files under `static/questions/` (e.g., `Q1.wav`). Update `backend/app/api.py` question entries accordingly. Avoid storing copyrighted instrument content in this repo.
+Place question audio files under `static/questions/` (e.g., `MMSE_Q1.mp3`). The question IDs in JSON must match audio filenames.
+Avoid storing copyrighted instrument content in this repo.
+
+## Question JSON Format
+
+Each question file is a JSON list of objects:
+
+```json
+[
+  { "id": "MMSE_Q1", "text": "Question text here" }
+]
+```
+
+## Generate TTS Audio (MP3)
+
+```bash
+pip install edge-tts
+python scripts/tts_questions.py --questions data/MMSE_questions.json --output static/questions
+```
+
+## API Endpoints (MVP)
+
+- `POST /api/sessions` create session
+- `GET /api/sessions/{session_id}/next` next question
+- `POST /api/sessions/{session_id}/responses` upload response audio
+- `GET /api/sessions/{session_id}/report` full report JSON
+- `GET /api/sessions/{session_id}/progress` answered/total
+- `POST /api/sessions/{session_id}/submit` build report + save + submit to external API
+
+## Auto Submit Flow
+
+The frontend checks completion after each response and calls `/submit` automatically.
+Reports are saved under `data/reports/<session_id>.json`.
+
+## Environment Variables
+
+- `COGSCREEN_API_URL` external API endpoint for `/submit`
+- `COGSCREEN_REPORT_DIR` directory for report JSON files

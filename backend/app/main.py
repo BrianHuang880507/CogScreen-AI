@@ -20,13 +20,14 @@ app.add_middleware(
 
 app.include_router(api.router, prefix="/api")
 
-frontend_path = Path("frontend")
-static_questions = Path("static")
+base_dir = Path(__file__).resolve().parents[2]
+frontend_path = base_dir / "frontend"
+static_questions = base_dir / "static"
 
-if frontend_path.exists():
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 if static_questions.exists():
     app.mount("/static", StaticFiles(directory=static_questions), name="static")
+if frontend_path.exists():
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 
 @app.on_event("startup")

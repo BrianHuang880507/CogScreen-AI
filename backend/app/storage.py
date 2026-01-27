@@ -69,6 +69,15 @@ def create_session(session_id: str, patient_id: str, instrument: str | None, con
         )
 
 
+def get_session(session_id: str) -> dict[str, Any] | None:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM sessions WHERE id = ?",
+            (session_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def save_response(
     response_id: str,
     session_id: str,

@@ -38,9 +38,30 @@ class ResponseCreateResponse(BaseModel):
 
 
 class ReportResponse(BaseModel):
+    version: str
+    ruleset_version: str
     session_id: str
+    patient_id: str | None
+    created_at: str | None
+    summary: dict[str, Any]
+    instrument_scores: dict[str, Any]
     responses: list[dict[str, Any]]
-    instrument_scores: list[dict[str, Any]]
+    disclaimer: str
+
+
+class ProgressResponse(BaseModel):
+    session_id: str
+    answered: int
+    total_questions: int
+    is_complete: bool
+
+
+class SubmitResponse(BaseModel):
+    session_id: str
+    status_code: int
+    response_text: str
+    report_path: str
+    report: dict[str, Any]
 
 
 class RuleType(str):
