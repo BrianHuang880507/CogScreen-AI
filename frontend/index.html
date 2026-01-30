@@ -3,53 +3,72 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cognitive Q&A Screening (Research Prototype)</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>&#x5931;&#x667a;&#x75c7;&#x7d71;&#x8a08;&#x5206;&#x6790;&#x5e73;&#x53f0;</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260131" />
   </head>
-  <body>
-    <main class="container">
-      <h1>Cognitive Q&A Screening</h1>
-      <p class="disclaimer">
-        重要聲明：這是一個研究／輔助篩檢原型，不能用於失智症診斷或取代臨床評估。結果必須由合格醫事人員解讀。
-      </p>
-
-      <section class="panel">
-        <h2>建立 Session</h2>
-        <label>
-          匿名代碼
-          <input id="patientId" type="text" placeholder="P001" />
-        </label>
-        <label>
-          量表
-          <select id="instrument">
-            <option value="">(未選擇)</option>
-            <option value="ad8">AD-8</option>
-            <option value="spmsq">SPMSQ</option>
-            <option value="mmse">MMSE</option>
-            <option value="moca">MoCA</option>
-          </select>
-        </label>
-        <button id="createSession">建立</button>
-      </section>
-
-      <section class="panel">
-        <h2>題目播放與錄音</h2>
-        <p id="questionText">尚未開始</p>
-        <audio id="questionAudio" controls></audio>
-        <div class="controls">
-          <button id="loadQuestion">取得下一題</button>
-          <button id="startRecording" disabled>開始錄音</button>
-          <button id="stopRecording" disabled>停止錄音</button>
+  <body data-page="login">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div class="brand-text">
+            <div class="brand-title">&#x5931;&#x667a;&#x7d71;&#x8a08;&#x5206;&#x6790;&#x5e73;&#x53f0;</div>
+            <div class="brand-sub">Research Prototype</div>
+          </div>
         </div>
-        <p id="status"></p>
-      </section>
+        <nav class="nav">
+          <a class="nav-link" data-view="login" href="/">&#x767b;&#x5165;</a>
+          <a class="nav-link nav-link-test" data-view="test" href="/test.html">&#x6e2c;&#x8a66;</a>
+        </nav>
+        <div class="nav-bottom">
+          <a class="nav-link" data-view="qa" href="/qa.html">Q&amp;A</a>
+        </div>
+        <div class="side-footer">
+          <p>&#x7814;&#x7a76;/&#x8f14;&#x52a9;&#x7be9;&#x6aa2;&#x7528;&#x9014;&#xff0c;&#x975e;&#x8a3a;&#x65b7;&#x3002;</p>
+        </div>
+      </aside>
 
-      <section class="panel">
-        <h2>最近一次結果</h2>
-        <pre id="result"></pre>
-      </section>
-    </main>
+      <main class="content">
+        <section class="panel">
+          <h1>&#x767b;&#x5165;</h1>
+          <p class="muted">&#x8acb;&#x8f38;&#x5165; Session ID &#x767b;&#x5165;&#xff0c;&#x6216;&#x9ede;&#x9078;&#x8a3b;&#x518a;&#x5efa;&#x7acb;&#x65b0;&#x4f7f;&#x7528;&#x8005;&#x3002;</p>
+          <div class="login-form">
+            <div id="loginFields" class="login-fields">
+              <label>
+                Session ID
+                <input id="sessionIdInput" type="text" placeholder="&#x8acb;&#x8f38;&#x5165; Session ID" />
+              </label>
+            </div>
+            <div id="registerFields" class="register-fields hidden" hidden>
+              <label>
+                &#x4f7f;&#x7528;&#x8005;&#x540d;&#x7a31;
+                <input id="userName" type="text" placeholder="&#x4f8b;&#x5982;&#xff1a;&#x738b;&#x5c0f;&#x660e;" />
+              </label>
+              <label>
+                &#x5e74;&#x9f61;
+                <input id="userAge" type="number" min="1" max="120" placeholder="&#x4f8b;&#x5982;&#xff1a;72" />
+              </label>
+            </div>
+          </div>
+          <div class="login-actions">
+            <button id="loginButton" class="primary">&#x767b;&#x5165;</button>
+            <button id="loginAnonymous" class="ghost">&#x533f;&#x540d;&#x767b;&#x5165;</button>
+            <button id="registerButton" class="ghost">&#x8a3b;&#x518a;</button>
+            <button id="backToLogin" class="ghost hidden" hidden>&#x8fd4;&#x56de;&#x767b;&#x5165;</button>
+          </div>
+          <p id="sessionInfo" class="session-info hidden">Session ID&#xff1a;<span id="sessionIdText"></span></p>
+          <p class="disclaimer">
+            &#x91cd;&#x8981;&#x8072;&#x660e;&#xff1a;&#x6b64;&#x7cfb;&#x7d71;&#x70ba;&#x7814;&#x7a76;/&#x8f14;&#x52a9;&#x7be9;&#x6aa2;&#x539f;&#x578b;&#xff0c;&#x4e0d;&#x53ef;&#x7528;&#x65bc;&#x5931;&#x667a;&#x75c7;&#x8a3a;&#x65b7;&#xff0c;&#x6240;&#x6709;&#x7d50;&#x679c;&#x9700;&#x7531;&#x5408;&#x683c;&#x91ab;&#x4e8b;&#x4eba;&#x54e1;&#x89e3;&#x8b80;&#x3002;
+          </p>
+        </section>
+      </main>
+    </div>
 
-    <script src="app.js"></script>
+    <button id="logoutBubble" class="logout-bubble hidden">&#x767b;&#x51fa;</button>
+    <div id="toast" class="toast"></div>
+    <script src="app.js?v=20260131"></script>
   </body>
 </html>

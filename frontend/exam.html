@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>&#x5931;&#x667a;&#x75c7;&#x7d71;&#x8a08;&#x5206;&#x6790;&#x5e73;&#x53f0; - &#x6e2c;&#x9a57;</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260131" />
+  </head>
+  <body data-page="exam">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div class="brand-text">
+            <div class="brand-title">&#x5931;&#x667a;&#x7d71;&#x8a08;&#x5206;&#x6790;&#x5e73;&#x53f0;</div>
+            <div class="brand-sub">Research Prototype</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" data-view="login" href="/">&#x767b;&#x5165;</a>
+          <a class="nav-link nav-link-test" data-view="test" href="/test.html">&#x6e2c;&#x8a66;</a>
+        </nav>
+        <div class="nav-bottom">
+          <a class="nav-link" data-view="qa" href="/qa.html">Q&amp;A</a>
+        </div>
+        <div class="side-footer">
+          <p>&#x7814;&#x7a76;/&#x8f14;&#x52a9;&#x7be9;&#x6aa2;&#x7528;&#x9014;&#xff0c;&#x975e;&#x8a3a;&#x65b7;&#x3002;</p>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="exam-header">
+          <div>
+            <div class="session-id">Session ID: <span id="sessionIdDisplay">--</span></div>
+            <h1 id="examTitle">&#x6e2c;&#x9a57;&#x9032;&#x884c;&#x4e2d;</h1>
+          </div>
+          <div class="exam-progress">
+            &#x5b8c;&#x6210;&#x984c;&#x6578;: <span id="doneCount">0</span>/<span id="totalCount">0</span>
+          </div>
+        </header>
+
+        <div class="exam-card">
+          <div class="question-block">
+            <div class="question-meta">
+              <div class="question-label">&#x984c;&#x865f; <span id="questionIndex">1</span></div>
+            </div>
+            <div id="questionBigText" class="question-big">&#x8acb;&#x6309;&#x4e0b;&#x4e00;&#x984c;&#x958b;&#x59cb;&#x3002;</div>
+          </div>
+
+          <div class="control-row">
+            <button id="prevQuestion" class="primary nav-button">&#x4e0a;&#x4e00;&#x984c;</button>
+            <audio id="questionAudio" controls></audio>
+            <button id="nextQuestion" class="primary nav-button">&#x4e0b;&#x4e00;&#x984c;</button>
+          </div>
+
+          <div class="answer-panel">
+            <pre id="result" class="result">&#x5c1a;&#x7121;&#x9304;&#x97f3;&#x7d50;&#x679c;</pre>
+            <div class="floating-controls">
+              <button id="micButton" class="icon-button mic" aria-label="&#x958b;&#x59cb;/&#x505c;&#x6b62;&#x9304;&#x97f3;" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V21h2v-3.07A7 7 0 0 0 19 11h-2z"/>
+                </svg>
+              </button>
+              <button id="sendButton" class="icon-button send" aria-label="&#x9001;&#x51fa;">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3.4 20.2 21 12 3.4 3.8l.8 7.2 9.8 1-9.8 1z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <p id="status" class="status visually-hidden">&#x7b49;&#x5f85;&#x958b;&#x59cb;&#x3002;</p>
+          <button id="viewResults" class="primary hidden">&#x67e5;&#x770b;&#x6e2c;&#x8a66;&#x7d50;&#x679c;</button>
+        </div>
+      </main>
+    </div>
+
+    <button id="logoutBubble" class="logout-bubble hidden">&#x767b;&#x51fa;</button>
+    <div id="toast" class="toast"></div>
+    <script src="app.js?v=20260131"></script>
+  </body>
+</html>

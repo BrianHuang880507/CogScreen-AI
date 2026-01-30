@@ -1,16 +1,77 @@
-const patientIdInput = document.getElementById("patientId");
-const instrumentSelect = document.getElementById("instrument");
-const createSessionButton = document.getElementById("createSession");
-const loadQuestionButton = document.getElementById("loadQuestion");
-const startRecordingButton = document.getElementById("startRecording");
-const stopRecordingButton = document.getElementById("stopRecording");
-const questionText = document.getElementById("questionText");
+
+const STR = {
+  "loginRequired": "\u8acb\u5148\u767b\u5165\u518d\u9032\u884c\u6e2c\u8a66",
+  "loginMissing": "\u8acb\u8f38\u5165 Session ID",
+  "loginSuccess": "\u767b\u5165\u6210\u529f",
+  "anonSuccess": "\u5df2\u4ee5\u533f\u540d\u65b9\u5f0f\u767b\u5165",
+  "registerSuccess": "\u8a3b\u518a\u6210\u529f",
+  "registerMissing": "\u8acb\u8f38\u5165\u4f7f\u7528\u8005\u540d\u7a31\u8207\u5e74\u9f61",
+  "logoutSuccess": "\u5df2\u767b\u51fa",
+  "anonBlocked": "\u533f\u540d\u767b\u5165\u7121\u6cd5\u9032\u884c\u6e2c\u8a66",
+  "mocaBuilding": "MoCA \u6b63\u5728\u5efa\u7acb\u4e2d",
+  "pickTest": "\u8acb\u5148\u9078\u64c7\u6e2c\u8a66",
+  "tryLater": "\u76ee\u524d\u7121\u6cd5\u8f09\u5165\u984c\u76ee",
+  "waitAudio": "\u7b49\u5f85\u984c\u76ee\u64ad\u653e\u5b8c\u6210",
+  "startHint": "\u8acb\u6309\u4e0b\u4e00\u984c\u958b\u59cb",
+  "starting": "\u6b63\u5728\u5efa\u7acb\u6e2c\u9a57...",
+  "needQuestion": "\u5c1a\u672a\u53d6\u5f97\u984c\u76ee",
+  "recording": "\u9304\u97f3\u4e2d...",
+  "uploading": "\u4e0a\u50b3\u9304\u97f3\u4e2d...",
+  "uploadFail": "\u4e0a\u50b3\u5931\u6557\uff0c\u8acb\u518d\u8a66\u4e00\u6b21",
+  "answered": "\u4f5c\u7b54\u5b8c\u6210\uff0c\u6b63\u5728\u6aa2\u67e5\u9032\u5ea6",
+  "reporting": "\u6b63\u5728\u7522\u751f\u5831\u8868...",
+  "reportFail": "\u5831\u8868\u7522\u751f\u5931\u6557",
+  "reportOk": "\u6e2c\u9a57\u5b8c\u6210",
+  "noResult": "\u5c1a\u7121\u9304\u97f3\u7d50\u679c",
+  "missingInstrument": "\u5c1a\u672a\u9078\u64c7\u6e2c\u9a57",
+  "anonymousName": "\u533f\u540d\u4f7f\u7528\u8005",
+  "candidatePrefix": "\u8003\u751f\uff1a",
+  "examSuffix": "\u6e2c\u9a57"
+};
+
+const toast = document.getElementById("toast");
+const navLinks = document.querySelectorAll(".nav-link");
+const currentPage = document.body ? document.body.dataset.page : "";
+const LOGIN_KEY = "isLoggedIn";
+const USER_NAME_KEY = "userName";
+const USER_AGE_KEY = "userAge";
+const USER_SESSION_KEY = "userSessionId";
+const USER_ANON_KEY = "isAnonymous";
+
+const loginButton = document.getElementById("loginButton");
+const loginAnonymous = document.getElementById("loginAnonymous");
+const registerButton = document.getElementById("registerButton");
+const backToLogin = document.getElementById("backToLogin");
+const sessionIdInput = document.getElementById("sessionIdInput");
+const loginFields = document.getElementById("loginFields");
+const registerFields = document.getElementById("registerFields");
+const userNameInput = document.getElementById("userName");
+const userAgeInput = document.getElementById("userAge");
+const sessionInfo = document.getElementById("sessionInfo");
+const sessionIdText = document.getElementById("sessionIdText");
+const logoutBubble = document.getElementById("logoutBubble");
+const loginForm = document.querySelector(".login-form");
+const loginActions = document.querySelector(".login-actions");
+
+const testCards = document.querySelectorAll(".test-card");
+const prevQuestionButton = document.getElementById("prevQuestion");
+const nextQuestionButton = document.getElementById("nextQuestion");
+const viewResultsButton = document.getElementById("viewResults");
+const questionBigText = document.getElementById("questionBigText");
 const questionAudio = document.getElementById("questionAudio");
 const statusEl = document.getElementById("status");
 const resultEl = document.getElementById("result");
+const questionIndex = document.getElementById("questionIndex");
+const examTitle = document.getElementById("examTitle");
+const sessionIdDisplay = document.getElementById("sessionIdDisplay");
+const doneCountEl = document.getElementById("doneCount");
+const totalCountEl = document.getElementById("totalCount");
+const micButton = document.getElementById("micButton");
+const sendButton = document.getElementById("sendButton");
 
 let sessionId = null;
 let currentQuestion = null;
+let selectedInstrument = null;
 let mediaRecorder = null;
 let recordedChunks = [];
 let vadStartMs = null;
@@ -19,18 +80,355 @@ let audioContext = null;
 let analyser = null;
 let micSource = null;
 let rafId = null;
+let currentIndex = 0;
+let totalQuestions = null;
+let historyIndex = -1;
+let pendingNavigation = null;
+const questionHistory = [];
+const answerCache = new Map();
 
 const VAD_THRESHOLD = 0.02;
 
-const setStatus = (message) => {
-  statusEl.textContent = message;
+const instrumentLabels = {
+  mmse: "MMSE",
+  spmsq: "SPMSQ",
+  ad8: "AD8",
+  moca: "MoCA",
 };
 
-createSessionButton.addEventListener("click", async () => {
+function showToast(message) {
+  if (!toast) {
+    return;
+  }
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+function isLoggedIn() {
+  return sessionStorage.getItem(LOGIN_KEY) === "true";
+}
+
+function isAnonymous() {
+  return sessionStorage.getItem(USER_ANON_KEY) === "true";
+}
+
+function canTakeTest() {
+  return isLoggedIn();
+}
+
+function generateSessionId() {
+  if (window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  if (window.crypto && window.crypto.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0"));
+    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex
+      .slice(6, 8)
+      .join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`;
+  }
+  return `uuid-${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
+}
+
+function setLoggedIn(name, age, anonymousLogin, sessionOverride) {
+  sessionStorage.setItem(LOGIN_KEY, "true");
+  sessionStorage.setItem(USER_NAME_KEY, name || STR.anonymousName);
+  sessionStorage.setItem(USER_ANON_KEY, anonymousLogin ? "true" : "false");
+  if (age) {
+    sessionStorage.setItem(USER_AGE_KEY, String(age));
+  }
+  const sessionUuid = sessionOverride || generateSessionId();
+  sessionStorage.setItem(USER_SESSION_KEY, sessionUuid);
+  return sessionUuid;
+}
+
+function updateNavState() {
+  const loggedIn = isLoggedIn();
+  const allowTest = canTakeTest();
+  navLinks.forEach((link) => {
+    if (link.dataset.view === "login") {
+      link.style.display = loggedIn ? "none" : "inline-flex";
+    }
+    if (link.dataset.view === "test") {
+      link.style.display = loggedIn ? "inline-flex" : "none";
+    }
+    link.classList.toggle("is-active", link.dataset.view === currentPage);
+  });
+  if (logoutBubble) {
+    logoutBubble.classList.toggle("hidden", !loggedIn);
+  }
+}
+
+function updateLoginPanel() {
+  if (!loginForm || !loginActions) {
+    return;
+  }
+  const loggedIn = isLoggedIn();
+  loginForm.classList.toggle("hidden", loggedIn);
+  loginActions.classList.toggle("hidden", loggedIn);
+  if (registerFields && loggedIn) {
+    registerFields.classList.add("hidden");
+  }
+}
+
+function setAuthMode(mode) {
+  const isRegister = mode === "register";
+  if (loginFields) {
+    loginFields.classList.toggle("hidden", isRegister);
+    loginFields.toggleAttribute("hidden", isRegister);
+  }
+  if (registerFields) {
+    registerFields.classList.toggle("hidden", !isRegister);
+    registerFields.toggleAttribute("hidden", !isRegister);
+  }
+  if (loginButton) {
+    loginButton.classList.toggle("hidden", isRegister);
+  }
+  if (loginAnonymous) {
+    loginAnonymous.classList.toggle("hidden", isRegister);
+  }
+  if (backToLogin) {
+    backToLogin.classList.toggle("hidden", !isRegister);
+    backToLogin.toggleAttribute("hidden", !isRegister);
+  }
+}
+
+function requireTestAccess(target = "/") {
+  if (!isLoggedIn()) {
+    showToast(STR.loginRequired);
+    setTimeout(() => {
+      window.location.href = target;
+    }, 600);
+    return false;
+  }
+  return true;
+}
+
+function hydrateSessionInfo() {
+  if (!sessionInfo || !sessionIdText) {
+    return;
+  }
+  const existing = sessionStorage.getItem(USER_SESSION_KEY);
+  if (existing) {
+    sessionIdText.textContent = existing;
+    sessionInfo.classList.remove("hidden");
+    if (sessionIdInput) {
+      sessionIdInput.value = existing;
+    }
+  }
+}
+
+updateNavState();
+updateLoginPanel();
+setAuthMode("login");
+hydrateSessionInfo();
+
+if (navLinks.length > 0) {
+  navLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      const view = link.dataset.view;
+      if (view === "test" && !canTakeTest()) {
+        event.preventDefault();
+        requireTestAccess("/");
+      }
+    });
+  });
+}
+
+if (loginButton) {
+  loginButton.addEventListener("click", () => {
+    const sessionValue = sessionIdInput ? sessionIdInput.value.trim() : "";
+    if (!sessionValue) {
+      showToast(STR.loginMissing);
+      return;
+    }
+    const sessionUuid = setLoggedIn("", "", false, sessionValue);
+    if (sessionInfo && sessionIdText) {
+      sessionIdText.textContent = sessionUuid;
+      sessionInfo.classList.remove("hidden");
+    }
+    if (sessionIdInput) {
+      sessionIdInput.value = sessionUuid;
+    }
+    showToast(STR.loginSuccess);
+    updateNavState();
+    updateLoginPanel();
+    setTimeout(() => {
+      window.location.href = "/test.html";
+    }, 400);
+  });
+}
+
+if (registerButton) {
+  registerButton.addEventListener("click", () => {
+    if (registerFields && registerFields.classList.contains("hidden")) {
+      setAuthMode("register");
+      if (userNameInput) {
+        userNameInput.focus();
+      }
+      return;
+    }
+    const name = userNameInput ? userNameInput.value.trim() : "";
+    const ageValue = userAgeInput ? userAgeInput.value.trim() : "";
+    if (!name || !ageValue) {
+      showToast(STR.registerMissing);
+      return;
+    }
+    const ageNumber = Number(ageValue);
+    if (!Number.isFinite(ageNumber) || ageNumber <= 0) {
+      showToast(STR.registerMissing);
+      return;
+    }
+    const sessionUuid = setLoggedIn(name, ageNumber, false);
+    if (sessionInfo && sessionIdText) {
+      sessionIdText.textContent = sessionUuid;
+      sessionInfo.classList.remove("hidden");
+    }
+    if (sessionIdInput) {
+      sessionIdInput.value = sessionUuid;
+    }
+    showToast(STR.registerSuccess);
+    updateNavState();
+    updateLoginPanel();
+    setTimeout(() => {
+      window.location.href = "/test.html";
+    }, 500);
+  });
+}
+
+if (loginAnonymous) {
+  loginAnonymous.addEventListener("click", () => {
+    const sessionUuid = setLoggedIn(STR.anonymousName, "", true);
+    if (sessionInfo && sessionIdText) {
+      sessionIdText.textContent = sessionUuid;
+      sessionInfo.classList.remove("hidden");
+    }
+    showToast(STR.anonSuccess);
+    updateNavState();
+    updateLoginPanel();
+    setTimeout(() => {
+      window.location.href = "/test.html";
+    }, 300);
+  });
+}
+
+if (backToLogin) {
+  backToLogin.addEventListener("click", () => {
+    setAuthMode("login");
+  });
+}
+
+if (logoutBubble) {
+  logoutBubble.addEventListener("click", () => {
+    sessionStorage.clear();
+    showToast(STR.logoutSuccess);
+    updateNavState();
+    updateLoginPanel();
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 300);
+  });
+}
+
+if (testCards.length > 0) {
+  if (requireTestAccess("/")) {
+    testCards.forEach((card) => {
+      card.addEventListener("click", () => {
+        const instrument = card.dataset.instrument;
+        if (instrument === "moca") {
+          showToast(STR.mocaBuilding);
+          return;
+        }
+        sessionStorage.setItem("instrument", instrument);
+        window.location.href = "/exam.html";
+      });
+    });
+  }
+}
+
+function setStatus(message) {
+  if (statusEl) {
+    statusEl.textContent = message;
+  }
+}
+
+function setMicState(isRecording) {
+  if (!micButton) {
+    return;
+  }
+  micButton.classList.toggle("is-recording", isRecording);
+  micButton.setAttribute("aria-pressed", isRecording ? "true" : "false");
+}
+
+function buildSilentWav(durationMs = 500, sampleRate = 16000) {
+  const numSamples = Math.max(1, Math.floor((sampleRate * durationMs) / 1000));
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  const writeString = (offset, text) => {
+    for (let i = 0; i < text.length; i += 1) {
+      view.setUint8(offset + i, text.charCodeAt(i));
+    }
+  };
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, numSamples * 2, true);
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+function updateExamHeader() {
+  if (sessionIdDisplay) {
+    const storedId = sessionStorage.getItem(USER_SESSION_KEY);
+    sessionIdDisplay.textContent = storedId || "--";
+  }
+}
+
+function setProgressCounts(done, total) {
+  if (doneCountEl) {
+    doneCountEl.textContent = String(done);
+  }
+  if (totalCountEl) {
+    totalCountEl.textContent = String(total);
+  }
+}
+
+async function refreshProgressCounts() {
+  if (!sessionId) {
+    return;
+  }
+  try {
+    const response = await fetch(`/api/sessions/${sessionId}/progress`);
+    if (!response.ok) {
+      return;
+    }
+    const progress = await response.json();
+    totalQuestions = progress.total_questions;
+    setProgressCounts(progress.answered, progress.total_questions);
+  } catch (error) {
+    return;
+  }
+}
+
+async function createSession() {
+  const userSessionId = sessionStorage.getItem(USER_SESSION_KEY) || "anonymous";
+  const age = sessionStorage.getItem(USER_AGE_KEY);
   const payload = {
-    patient_id: patientIdInput.value || "anonymous",
-    instrument: instrumentSelect.value || null,
-    config: {},
+    patient_id: userSessionId,
+    instrument: selectedInstrument,
+    config: { age },
   };
   const response = await fetch("/api/sessions", {
     method: "POST",
@@ -39,43 +437,114 @@ createSessionButton.addEventListener("click", async () => {
   });
   const data = await response.json();
   sessionId = data.session_id;
-  setStatus(`Session created: ${sessionId}`);
-});
+  await refreshProgressCounts();
+}
 
-loadQuestionButton.addEventListener("click", async () => {
-  if (!sessionId) {
-    setStatus("請先建立 session");
-    return;
+function setCurrentQuestion(question, index) {
+  currentQuestion = question;
+  historyIndex = index;
+  currentIndex = index + 1;
+  if (questionIndex) {
+    questionIndex.textContent = String(currentIndex);
   }
+  if (questionBigText) {
+    questionBigText.textContent = question.text;
+  }
+  if (questionAudio) {
+    questionAudio.src = question.audio_url;
+  }
+  if (resultEl) {
+    const cached = answerCache.get(question.question_id);
+    resultEl.textContent = cached || STR.noResult;
+  }
+  if (totalQuestions === null) {
+    setProgressCounts(currentIndex, currentIndex);
+  }
+  setStatus(STR.waitAudio);
+}
+
+async function fetchNextQuestion() {
   const response = await fetch(`/api/sessions/${sessionId}/next`);
   if (!response.ok) {
-    setStatus("沒有更多題目");
+    setStatus(STR.tryLater);
+    if (viewResultsButton) {
+      viewResultsButton.classList.remove("hidden");
+    }
+    return null;
+  }
+  return response.json();
+}
+
+async function loadNextQuestion() {
+  if (!sessionId) {
     return;
   }
-  currentQuestion = await response.json();
-  questionText.textContent = currentQuestion.text;
-  questionAudio.src = currentQuestion.audio_url;
-  startRecordingButton.disabled = false;
-  setStatus("已取得題目，請播放題目音檔。播放結束後會自動開始錄音。");
-});
-
-questionAudio.addEventListener("ended", () => {
-  if (!startRecordingButton.disabled) {
-    beginRecording();
+  if (historyIndex < questionHistory.length - 1) {
+    setCurrentQuestion(questionHistory[historyIndex + 1], historyIndex + 1);
+    return;
   }
-});
+  const nextQuestion = await fetchNextQuestion();
+  if (!nextQuestion) {
+    return;
+  }
+  if (currentQuestion && nextQuestion.question_id === currentQuestion.question_id) {
+    const silentBlob = buildSilentWav();
+    await uploadResponse(silentBlob, "silence.wav");
+    const retry = await fetchNextQuestion();
+    if (retry && retry.question_id !== currentQuestion.question_id) {
+      questionHistory.push(retry);
+      setCurrentQuestion(retry, questionHistory.length - 1);
+      return;
+    }
+    setStatus(STR.tryLater);
+    return;
+  }
+  questionHistory.push(nextQuestion);
+  setCurrentQuestion(nextQuestion, questionHistory.length - 1);
+}
 
-startRecordingButton.addEventListener("click", () => {
-  beginRecording();
-});
+function loadPreviousQuestion() {
+  if (historyIndex <= 0) {
+    return;
+  }
+  setCurrentQuestion(questionHistory[historyIndex - 1], historyIndex - 1);
+}
 
-stopRecordingButton.addEventListener("click", () => {
-  stopRecording();
-});
+async function startExam(instrument) {
+  selectedInstrument = instrument;
+  currentIndex = 0;
+  historyIndex = -1;
+  questionHistory.length = 0;
+  answerCache.clear();
+  totalQuestions = null;
+  updateExamHeader();
+  if (questionIndex) {
+    questionIndex.textContent = "1";
+  }
+  if (questionBigText) {
+    questionBigText.textContent = STR.startHint;
+  }
+  if (questionAudio) {
+    questionAudio.removeAttribute("src");
+  }
+  if (resultEl) {
+    resultEl.textContent = STR.noResult;
+  }
+  if (viewResultsButton) {
+    viewResultsButton.classList.add("hidden");
+  }
+  if (examTitle) {
+    examTitle.textContent = `${instrumentLabels[instrument]} ${STR.examSuffix}`;
+  }
+  setProgressCounts(0, totalQuestions || 0);
+  setStatus(STR.starting);
+  await createSession();
+  await loadNextQuestion();
+}
 
 async function beginRecording() {
   if (!sessionId || !currentQuestion) {
-    setStatus("請先取得題目");
+    setStatus(STR.needQuestion);
     return;
   }
   if (mediaRecorder) {
@@ -126,9 +595,8 @@ async function beginRecording() {
   };
 
   mediaRecorder.start();
-  startRecordingButton.disabled = true;
-  stopRecordingButton.disabled = false;
-  setStatus("錄音中...");
+  setMicState(true);
+  setStatus(STR.recording);
 }
 
 function stopRecording() {
@@ -136,28 +604,95 @@ function stopRecording() {
     return;
   }
   mediaRecorder.stop();
-  stopRecordingButton.disabled = true;
-  startRecordingButton.disabled = false;
-  setStatus("上傳中...");
+  setMicState(false);
+  setStatus(STR.uploading);
 }
 
-async function uploadResponse(blob) {
-  const formData = new FormData();
-  formData.append("audio", blob, "response.webm");
-  formData.append("question_id", currentQuestion.question_id);
-  if (vadStartMs !== null) {
-    formData.append("reaction_time_vad_ms", vadStartMs.toFixed(2));
+async function handleNavigation(direction) {
+  if (!sessionId) {
+    showToast(STR.pickTest);
+    return;
   }
-  const response = await fetch(`/api/sessions/${sessionId}/responses`, {
-    method: "POST",
-    body: formData,
-  });
-  const data = await response.json();
-  resultEl.textContent = JSON.stringify(data, null, 2);
-  setStatus("Response saved.");
-  await checkAndSubmitReport();
+  if (!currentQuestion) {
+    if (direction === "next") {
+      await loadNextQuestion();
+    }
+    return;
+  }
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    pendingNavigation = direction;
+    stopRecording();
+    return;
+  }
+  if (direction === "next") {
+    const hasAnswer = answerCache.has(currentQuestion.question_id);
+    if (!hasAnswer) {
+      pendingNavigation = "next";
+      const silentBlob = buildSilentWav();
+      await uploadResponse(silentBlob, "silence.wav");
+      return;
+    }
+    await loadNextQuestion();
+  } else if (direction === "prev") {
+    loadPreviousQuestion();
+  }
 }
 
+async function uploadResponse(blob, filename = "response.webm") {
+  if (!sessionId || !currentQuestion) {
+    setStatus(STR.needQuestion);
+    pendingNavigation = null;
+    return false;
+  }
+  const questionId = currentQuestion.question_id || currentQuestion.id;
+  if (!questionId || !blob) {
+    setStatus(STR.uploadFail);
+    pendingNavigation = null;
+    return false;
+  }
+  const formData = new FormData();
+  formData.append("audio", blob, filename);
+  formData.append("question_id", questionId);
+  const query = new URLSearchParams({
+    question_id: questionId,
+  });
+  if (vadStartMs !== null) {
+    query.set("reaction_time_vad_ms", vadStartMs.toFixed(2));
+  }
+  const response = await fetch(
+    `/api/sessions/${sessionId}/responses?${query.toString()}`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+  if (!response.ok) {
+    setStatus(STR.uploadFail);
+    pendingNavigation = null;
+    return false;
+  }
+  const data = await response.json().catch(() => ({}));
+  const transcript = data && data.transcript ? String(data.transcript) : "";
+  if (currentQuestion) {
+    answerCache.set(questionId, transcript || STR.noResult);
+  }
+  if (resultEl) {
+    resultEl.textContent = transcript || STR.noResult;
+  }
+  setStatus(STR.answered);
+  await refreshProgressCounts();
+  await checkAndSubmitReport();
+  if (pendingNavigation) {
+    const direction = pendingNavigation;
+    pendingNavigation = null;
+    if (direction === "next") {
+      await loadNextQuestion();
+    } else if (direction === "prev") {
+      loadPreviousQuestion();
+    }
+  }
+  return true;
+}
 
 async function checkAndSubmitReport() {
   if (!sessionId) {
@@ -171,15 +706,75 @@ async function checkAndSubmitReport() {
   if (!progress.is_complete) {
     return;
   }
-  setStatus("Session complete. Submitting report...");
+  setStatus(STR.reporting);
   const submitResponse = await fetch(`/api/sessions/${sessionId}/submit`, {
     method: "POST",
   });
   if (!submitResponse.ok) {
-    setStatus("Report submission failed.");
+    setStatus(STR.reportFail);
     return;
   }
-  const submitData = await submitResponse.json();
-  resultEl.textContent = JSON.stringify(submitData, null, 2);
-  setStatus("Report submitted.");
+  await submitResponse.json();
+  if (viewResultsButton) {
+    viewResultsButton.classList.remove("hidden");
+  }
+  setStatus(STR.reportOk);
+}
+
+if (currentPage === "exam") {
+  if (!requireTestAccess("/")) {
+    selectedInstrument = null;
+  } else {
+    selectedInstrument = sessionStorage.getItem("instrument");
+  }
+  if (!selectedInstrument) {
+    showToast(STR.missingInstrument);
+    setTimeout(() => {
+      window.location.href = "/test.html";
+    }, 800);
+  } else {
+    startExam(selectedInstrument);
+  }
+}
+
+if (questionAudio) {
+  questionAudio.addEventListener("ended", () => {
+    if (!mediaRecorder || mediaRecorder.state !== "recording") {
+      beginRecording();
+    }
+  });
+}
+
+if (micButton) {
+  micButton.addEventListener("click", () => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      stopRecording();
+    } else {
+      beginRecording();
+    }
+  });
+}
+
+if (sendButton) {
+  sendButton.addEventListener("click", async () => {
+    await handleNavigation("next");
+  });
+}
+
+if (prevQuestionButton) {
+  prevQuestionButton.addEventListener("click", async () => {
+    await handleNavigation("prev");
+  });
+}
+
+if (nextQuestionButton) {
+  nextQuestionButton.addEventListener("click", async () => {
+    await handleNavigation("next");
+  });
+}
+
+if (viewResultsButton) {
+  viewResultsButton.addEventListener("click", () => {
+    window.location.href = "https://play-game.azurewebsites.net/#/";
+  });
 }
