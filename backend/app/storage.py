@@ -39,6 +39,7 @@ def init_db() -> None:
                 transcript TEXT,
                 reaction_time_whisper_ms REAL,
                 reaction_time_vad_ms REAL,
+                manual_confirmed INTEGER,
                 rule_score_json TEXT,
                 llm_judge_json TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -46,6 +47,9 @@ def init_db() -> None:
             )
             """
         )
+        columns = [row["name"] for row in conn.execute("PRAGMA table_info(responses)").fetchall()]
+        if "manual_confirmed" not in columns:
+            conn.execute("ALTER TABLE responses ADD COLUMN manual_confirmed INTEGER")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS instrument_scores (
@@ -85,6 +89,7 @@ def save_response(
     transcript: str | None,
     reaction_time_whisper_ms: float | None,
     reaction_time_vad_ms: float | None,
+    manual_confirmed: bool | None,
     rule_score: dict[str, Any] | None,
     llm_judge: dict[str, Any] | None,
 ) -> None:
@@ -93,8 +98,8 @@ def save_response(
             """
             INSERT INTO responses (
                 id, session_id, question_id, transcript, reaction_time_whisper_ms,
-                reaction_time_vad_ms, rule_score_json, llm_judge_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                reaction_time_vad_ms, manual_confirmed, rule_score_json, llm_judge_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 response_id,
@@ -103,6 +108,7 @@ def save_response(
                 transcript,
                 reaction_time_whisper_ms,
                 reaction_time_vad_ms,
+                1 if manual_confirmed else 0 if manual_confirmed is not None else None,
                 json.dumps(rule_score) if rule_score else None,
                 json.dumps(llm_judge) if llm_judge else None,
             ),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import uuid
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,7 @@ async def submit_response(
     session_id: str,
     question_id: str,
     reaction_time_vad_ms: float | None = None,
+    manual_confirmed: bool | None = None,
     audio: UploadFile = File(...),
 ) -> models.ResponseCreateResponse:
     response_id = str(uuid.uuid4())
@@ -53,9 +55,24 @@ async def submit_response(
     content = await audio.read()
     audio_path.write_bytes(content)
 
+    session = storage.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        config = json.loads(session.get("config_json") or "{}")
+    except json.JSONDecodeError:
+        config = {}
+
+    question = next((q for q in QUESTION_BANK if q["question_id"] == question_id), None)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    exclude_from_scoring = bool(question.get("exclude_from_scoring"))
+    recording_disabled = bool(question.get("recording_disabled"))
+
     transcript = None
     transcription_payload: dict[str, Any] | None = None
-    if os.getenv("OPENAI_API_KEY"):
+    if os.getenv("OPENAI_API_KEY") and not recording_disabled and not exclude_from_scoring:
         transcription_payload = transcribe_audio(
             str(audio_path),
             response_format="verbose_json",
@@ -69,20 +86,28 @@ async def submit_response(
         else None
     )
 
-    question = next((q for q in QUESTION_BANK if q["question_id"] == question_id), None)
-    if not question:
-        raise HTTPException(status_code=404, detail="Question not found")
-
     rule_score = None
     llm_judge = None
-    if transcript:
-        rule_score = scoring_rules.score_answer(transcript, question["scoring_rule"])
-        if os.getenv("OPENAI_API_KEY"):
-            llm_judge = judge_answer(
-                transcript,
-                question["scoring_rule"].get("expected", []),
-                question["scoring_rule"].get("type", "exact"),
-            )
+    if transcript and not exclude_from_scoring:
+        context = {
+            "timezone": os.getenv("COGSCREEN_TIMEZONE", "Asia/Taipei"),
+            "patient_age": config.get("age"),
+            "patient_phone": config.get("phone"),
+            "patient_address": config.get("address"),
+            "patient_birthday": config.get("birthday"),
+            "patient_mother_name": config.get("mother_name"),
+            "president_current": config.get("president_current"),
+            "president_previous": config.get("president_previous"),
+        }
+        prepared_rule, skip_scoring = scoring_rules.prepare_rule(question["scoring_rule"], context)
+        if not skip_scoring:
+            rule_score = scoring_rules.score_answer(transcript, prepared_rule)
+            if os.getenv("OPENAI_API_KEY"):
+                llm_judge = judge_answer(
+                    transcript,
+                    prepared_rule.get("expected", []),
+                    prepared_rule.get("type", "exact"),
+                )
 
     storage.save_response(
         response_id=response_id,
@@ -91,6 +116,7 @@ async def submit_response(
         transcript=transcript,
         reaction_time_whisper_ms=reaction_time_whisper_ms,
         reaction_time_vad_ms=reaction_time_vad_ms,
+        manual_confirmed=manual_confirmed,
         rule_score=rule_score,
         llm_judge=llm_judge,
     )
@@ -100,6 +126,7 @@ async def submit_response(
         transcript=transcript,
         reaction_time_whisper_ms=reaction_time_whisper_ms,
         reaction_time_vad_ms=reaction_time_vad_ms,
+        manual_confirmed=manual_confirmed,
         rule_score=rule_score,
         llm_judge=llm_judge,
     )
@@ -144,15 +171,9 @@ async def submit_report(session_id: str) -> models.SubmitResponse:
     )
     try:
         async with reporting.http_client() as client:
-            response = await client.post(api_url, json=report_payload)
+            response = await client.post(api_url, json={"info": report_payload})
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Submit failed: {exc}") from exc
 
-    report_path = reporting.save_report(report_payload, session_id)
-    return models.SubmitResponse(
-        session_id=session_id,
-        status_code=response.status_code,
-        response_text=response.text,
-        report_path=str(report_path),
-        report=report_payload,
-    )
+    reporting.save_report(report_payload, session_id)
+    return models.SubmitResponse(**report_payload)

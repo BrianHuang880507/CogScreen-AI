@@ -1,46 +1,57 @@
 [
   {
     "id": "SPMSQ_Q1",
-    "text": "今天是幾年幾月幾日？"
+    "text": "今天是幾年幾月幾日？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__TODAY_DATE__"]}
   },
   {
     "id": "SPMSQ_Q2",
-    "text": "今天是星期幾？"
+    "text": "今天是星期幾？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__TODAY_WEEKDAY__"]}
   },
   {
     "id": "SPMSQ_Q3",
-    "text": "這裡是什麼地方？"
+    "text": "這裡是什麼地方？",
+    "scoring_rule": {"type": "contains_any", "expected": ["縣", "市", "區", "鄉", "鎮", "醫院", "診所"]}
   },
   {
     "id": "SPMSQ_Q4",
-    "text": "你的電話號碼是幾號？"
+    "text": "你的電話號碼是幾號？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__PATIENT_PHONE__"]}
   },
   {
     "id": "SPMSQ_Q4A",
-    "text": "你住在什麼地方？（若沒有電話時）"
+    "text": "你住在什麼地方？（若沒有電話時）",
+    "scoring_rule": {"type": "contains_any", "expected": ["__PATIENT_ADDRESS__"]}
   },
   {
     "id": "SPMSQ_Q5",
-    "text": "你幾歲了？"
+    "text": "你幾歲了？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__PATIENT_AGE__"]}
   },
   {
     "id": "SPMSQ_Q6",
-    "text": "你的生日是哪一天？"
+    "text": "你的生日是哪一天？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__PATIENT_BIRTHDAY__"]}
   },
   {
     "id": "SPMSQ_Q7",
-    "text": "現任總統是誰？"
+    "text": "現任總統是誰？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__PRESIDENT_CURRENT__"]}
   },
   {
     "id": "SPMSQ_Q8",
-    "text": "前任總統是誰？"
+    "text": "前任總統是誰？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__PRESIDENT_PREVIOUS__"]}
   },
   {
     "id": "SPMSQ_Q9",
-    "text": "你媽媽叫什麼名字？"
+    "text": "你媽媽叫什麼名字？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__PATIENT_MOTHER_NAME__"]}
   },
   {
     "id": "SPMSQ_Q10",
-    "text": "請從 20 開始一直減 3，減下去。"
+    "text": "請從 20 開始一直減 3，減下去。",
+    "scoring_rule": {"type": "sequence_subtract", "start": 20, "step": -3, "count": 5, "min_correct": 3}
   }
 ]

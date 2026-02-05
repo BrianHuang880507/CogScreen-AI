@@ -66,8 +66,15 @@ const examTitle = document.getElementById("examTitle");
 const sessionIdDisplay = document.getElementById("sessionIdDisplay");
 const doneCountEl = document.getElementById("doneCount");
 const totalCountEl = document.getElementById("totalCount");
+const answerPanel = document.querySelector(".answer-panel");
 const micButton = document.getElementById("micButton");
 const sendButton = document.getElementById("sendButton");
+const manualConfirmButton = document.getElementById("manualConfirm");
+const manualRejectButton = document.getElementById("manualReject");
+const manualPanel = document.getElementById("manualPanel");
+const questionMedia = document.getElementById("questionMedia");
+const questionImage = document.getElementById("questionImage");
+const questionImagePlaceholder = document.getElementById("questionImagePlaceholder");
 
 let sessionId = null;
 let currentQuestion = null;
@@ -86,8 +93,13 @@ let historyIndex = -1;
 let pendingNavigation = null;
 const questionHistory = [];
 const answerCache = new Map();
+let manualConfirmed = false;
+let recordingDisabled = false;
 
 const VAD_THRESHOLD = 0.02;
+const RESULTS_URL = "https://play-game.azurewebsites.net/#/";
+const IMAGE_PLACEHOLDER_IDS = new Set();
+const SESSION_MAP_KEY = "instrumentSessionMap";
 
 const instrumentLabels = {
   mmse: "MMSE",
@@ -103,6 +115,41 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+function loadSessionMap() {
+  try {
+    const raw = localStorage.getItem(SESSION_MAP_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function saveSessionMap(map) {
+  localStorage.setItem(SESSION_MAP_KEY, JSON.stringify(map));
+}
+
+function getStoredSessionId(instrument) {
+  const map = loadSessionMap();
+  return map[instrument] || null;
+}
+
+function setStoredSessionId(instrument, id) {
+  if (!instrument || !id) {
+    return;
+  }
+  const map = loadSessionMap();
+  map[instrument] = id;
+  saveSessionMap(map);
+}
+
+function clearStoredSessionId(instrument) {
+  const map = loadSessionMap();
+  if (instrument in map) {
+    delete map[instrument];
+    saveSessionMap(map);
+  }
 }
 
 function isLoggedIn() {
@@ -325,6 +372,7 @@ if (backToLogin) {
 if (logoutBubble) {
   logoutBubble.addEventListener("click", () => {
     sessionStorage.clear();
+    localStorage.removeItem(SESSION_MAP_KEY);
     showToast(STR.logoutSuccess);
     updateNavState();
     updateLoginPanel();
@@ -360,6 +408,13 @@ function setMicState(isRecording) {
   if (!micButton) {
     return;
   }
+  if (recordingDisabled) {
+    micButton.classList.remove("is-recording");
+    micButton.setAttribute("aria-pressed", "false");
+    micButton.classList.add("hidden");
+    return;
+  }
+  micButton.classList.remove("hidden");
   micButton.classList.toggle("is-recording", isRecording);
   micButton.setAttribute("aria-pressed", isRecording ? "true" : "false");
 }
@@ -405,6 +460,71 @@ function setProgressCounts(done, total) {
   }
 }
 
+function setManualConfirmState(isConfirmed) {
+  manualConfirmed = isConfirmed;
+  if (!manualConfirmButton) {
+    return;
+  }
+  manualConfirmButton.classList.toggle("is-active", manualConfirmed);
+  manualConfirmButton.setAttribute("aria-pressed", manualConfirmed ? "true" : "false");
+}
+
+function updateManualPanel(question) {
+  if (!manualPanel) {
+    return;
+  }
+  const needsManual = Boolean(question && question.manual_confirm);
+  manualPanel.classList.toggle("hidden", !needsManual);
+  if (!needsManual) {
+    setManualConfirmState(false);
+  }
+}
+
+function updateAnswerPanel(question) {
+  if (!answerPanel) {
+    return;
+  }
+  const hidePanel = Boolean(question && question.recording_disabled);
+  answerPanel.classList.toggle("hidden", hidePanel);
+}
+
+function updateQuestionImage(question) {
+  if (!questionMedia || !questionImage || !questionImagePlaceholder) {
+    return;
+  }
+  const questionId = question.question_id || question.id;
+  const explicit = question.image_url || question.image;
+  let imageUrl = null;
+  if (explicit) {
+    imageUrl = String(explicit);
+    if (!imageUrl.startsWith("/")) {
+      imageUrl = `/static/images/${imageUrl}`;
+    }
+  } else if (questionId && IMAGE_PLACEHOLDER_IDS.has(questionId)) {
+    imageUrl = `/static/images/${questionId}.png`;
+  }
+
+  if (!imageUrl) {
+    questionMedia.classList.add("hidden");
+    return;
+  }
+
+  questionMedia.classList.remove("hidden");
+  questionImagePlaceholder.classList.remove("hidden");
+  questionImagePlaceholder.textContent = "可放置題目圖片";
+  questionImage.classList.add("hidden");
+  questionImage.src = imageUrl;
+  questionImage.onload = () => {
+    questionImage.classList.remove("hidden");
+    questionImagePlaceholder.classList.add("hidden");
+  };
+  questionImage.onerror = () => {
+    questionImage.classList.add("hidden");
+    questionImagePlaceholder.textContent = "尚未提供圖片";
+    questionImagePlaceholder.classList.remove("hidden");
+  };
+}
+
 async function refreshProgressCounts() {
   if (!sessionId) {
     return;
@@ -437,6 +557,7 @@ async function createSession() {
   });
   const data = await response.json();
   sessionId = data.session_id;
+  setStoredSessionId(selectedInstrument, sessionId);
   await refreshProgressCounts();
 }
 
@@ -444,6 +565,12 @@ function setCurrentQuestion(question, index) {
   currentQuestion = question;
   historyIndex = index;
   currentIndex = index + 1;
+  recordingDisabled = Boolean(question && question.recording_disabled);
+  setMicState(false);
+  setManualConfirmState(false);
+  updateManualPanel(question);
+  updateAnswerPanel(question);
+  updateQuestionImage(question);
   if (questionIndex) {
     questionIndex.textContent = String(currentIndex);
   }
@@ -524,12 +651,24 @@ async function startExam(instrument) {
   if (questionBigText) {
     questionBigText.textContent = STR.startHint;
   }
+  if (questionMedia) {
+    questionMedia.classList.add("hidden");
+  }
+  if (manualPanel) {
+    manualPanel.classList.add("hidden");
+  }
+  if (answerPanel) {
+    answerPanel.classList.remove("hidden");
+  }
+  recordingDisabled = false;
+  setMicState(false);
   if (questionAudio) {
     questionAudio.removeAttribute("src");
   }
   if (resultEl) {
     resultEl.textContent = STR.noResult;
   }
+  setManualConfirmState(false);
   if (viewResultsButton) {
     viewResultsButton.classList.add("hidden");
   }
@@ -538,6 +677,17 @@ async function startExam(instrument) {
   }
   setProgressCounts(0, totalQuestions || 0);
   setStatus(STR.starting);
+  const storedSessionId = getStoredSessionId(instrument);
+  if (storedSessionId) {
+    sessionId = storedSessionId;
+    const progress = await fetch(`/api/sessions/${sessionId}/progress`);
+    if (progress.ok) {
+      await refreshProgressCounts();
+      await loadNextQuestion();
+      return;
+    }
+    sessionId = null;
+  }
   await createSession();
   await loadNextQuestion();
 }
@@ -545,6 +695,10 @@ async function startExam(instrument) {
 async function beginRecording() {
   if (!sessionId || !currentQuestion) {
     setStatus(STR.needQuestion);
+    return;
+  }
+  if (recordingDisabled) {
+    setStatus(STR.waitAudio);
     return;
   }
   if (mediaRecorder) {
@@ -638,7 +792,7 @@ async function handleNavigation(direction) {
   }
 }
 
-async function uploadResponse(blob, filename = "response.webm") {
+async function uploadResponse(blob, filename = "response.webm", manualOverride = null) {
   if (!sessionId || !currentQuestion) {
     setStatus(STR.needQuestion);
     pendingNavigation = null;
@@ -658,6 +812,11 @@ async function uploadResponse(blob, filename = "response.webm") {
   });
   if (vadStartMs !== null) {
     query.set("reaction_time_vad_ms", vadStartMs.toFixed(2));
+  }
+  if (manualOverride !== null) {
+    query.set("manual_confirmed", manualOverride ? "true" : "false");
+  } else if (manualConfirmed) {
+    query.set("manual_confirmed", "true");
   }
   const response = await fetch(
     `/api/sessions/${sessionId}/responses?${query.toString()}`,
@@ -679,9 +838,10 @@ async function uploadResponse(blob, filename = "response.webm") {
   if (resultEl) {
     resultEl.textContent = transcript || STR.noResult;
   }
+  setManualConfirmState(false);
   setStatus(STR.answered);
   await refreshProgressCounts();
-  await checkAndSubmitReport();
+  await maybeSubmitReport();
   if (pendingNavigation) {
     const direction = pendingNavigation;
     pendingNavigation = null;
@@ -694,7 +854,47 @@ async function uploadResponse(blob, filename = "response.webm") {
   return true;
 }
 
-async function checkAndSubmitReport() {
+async function submitManualDecision(isConfirmed) {
+  if (!sessionId || !currentQuestion) {
+    setStatus(STR.needQuestion);
+    return;
+  }
+  setStatus(STR.uploading);
+  pendingNavigation = "next";
+  const silentBlob = buildSilentWav();
+  await uploadResponse(silentBlob, "manual.wav", isConfirmed);
+}
+
+async function submitReport({ showStatus = false, redirectOnSuccess = false } = {}) {
+  if (!sessionId) {
+    return false;
+  }
+  if (showStatus) {
+    setStatus(STR.reporting);
+  }
+  const submitResponse = await fetch(`/api/sessions/${sessionId}/submit`, {
+    method: "POST",
+  });
+  if (!submitResponse.ok) {
+    if (showStatus) {
+      setStatus(STR.reportFail);
+    }
+    return false;
+  }
+  await submitResponse.json().catch(() => ({}));
+  if (viewResultsButton) {
+    viewResultsButton.classList.remove("hidden");
+  }
+  if (showStatus) {
+    setStatus(STR.reportOk);
+  }
+  if (redirectOnSuccess) {
+    window.location.href = RESULTS_URL;
+  }
+  return true;
+}
+
+async function maybeSubmitReport() {
   if (!sessionId) {
     return;
   }
@@ -703,22 +903,15 @@ async function checkAndSubmitReport() {
     return;
   }
   const progress = await progressResponse.json();
-  if (!progress.is_complete) {
+  if (progress.is_complete) {
+    await submitReport({ showStatus: true });
+    clearStoredSessionId(selectedInstrument);
     return;
   }
-  setStatus(STR.reporting);
-  const submitResponse = await fetch(`/api/sessions/${sessionId}/submit`, {
-    method: "POST",
-  });
-  if (!submitResponse.ok) {
-    setStatus(STR.reportFail);
-    return;
+  if (totalQuestions !== null && currentIndex >= totalQuestions) {
+    await submitReport({ showStatus: true });
+    clearStoredSessionId(selectedInstrument);
   }
-  await submitResponse.json();
-  if (viewResultsButton) {
-    viewResultsButton.classList.remove("hidden");
-  }
-  setStatus(STR.reportOk);
 }
 
 if (currentPage === "exam") {
@@ -739,6 +932,9 @@ if (currentPage === "exam") {
 
 if (questionAudio) {
   questionAudio.addEventListener("ended", () => {
+    if (recordingDisabled) {
+      return;
+    }
     if (!mediaRecorder || mediaRecorder.state !== "recording") {
       beginRecording();
     }
@@ -752,6 +948,18 @@ if (micButton) {
     } else {
       beginRecording();
     }
+  });
+}
+
+if (manualConfirmButton) {
+  manualConfirmButton.addEventListener("click", () => {
+    submitManualDecision(true);
+  });
+}
+
+if (manualRejectButton) {
+  manualRejectButton.addEventListener("click", () => {
+    submitManualDecision(false);
   });
 }
 
@@ -774,7 +982,10 @@ if (nextQuestionButton) {
 }
 
 if (viewResultsButton) {
-  viewResultsButton.addEventListener("click", () => {
-    window.location.href = "https://play-game.azurewebsites.net/#/";
+  viewResultsButton.addEventListener("click", async () => {
+    const ok = await submitReport({ showStatus: true, redirectOnSuccess: true });
+    if (!ok) {
+      showToast(STR.reportFail);
+    }
   });
 }

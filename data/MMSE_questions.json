@@ -1,82 +1,113 @@
 [
   {
     "id": "MMSE_Q1",
-    "text": "今年是哪一年？"
+    "text": "今年是哪一年？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__TODAY_YEAR__"]}
   },
   {
     "id": "MMSE_Q2",
-    "text": "現在是什麼季節？"
+    "text": "現在是什麼季節？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__SEASON__"]}
   },
   {
     "id": "MMSE_Q3",
-    "text": "今天是幾號？"
+    "text": "今天是幾號？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__TODAY_DAY__"]}
   },
   {
     "id": "MMSE_Q4",
-    "text": "今天是星期幾？"
+    "text": "今天是星期幾？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__TODAY_WEEKDAY__"]}
   },
   {
     "id": "MMSE_Q5",
-    "text": "現在是幾月份？"
+    "text": "現在是幾月份？",
+    "scoring_rule": {"type": "contains_any", "expected": ["__TODAY_MONTH__"]}
   },
   {
     "id": "MMSE_Q6",
-    "text": "我們現在在哪一個省？"
+    "text": "我們現在在哪一個國家？",
+    "scoring_rule": {"type": "contains_any", "expected": ["台灣", "臺灣", "中華民國"]}
   },
   {
     "id": "MMSE_Q7",
-    "text": "我們現在在哪一個縣或市？"
+    "text": "我們現在在哪一個縣或市？",
+    "scoring_rule": {"type": "contains_any", "expected": ["縣", "市"]}
   },
   {
     "id": "MMSE_Q8",
-    "text": "這裡是哪一個區或鄉鎮？"
+    "text": "這裡是哪一個區或鄉鎮？",
+    "scoring_rule": {"type": "contains_any", "expected": ["區", "鄉", "鎮"]}
   },
   {
     "id": "MMSE_Q9",
-    "text": "這個單位（醫院或診所）的名稱是什麼？"
+    "text": "這個醫院或診所的名稱是什麼？",
+    "scoring_rule": {"type": "contains_any", "expected": ["醫院", "診所"]}
   },
   {
     "id": "MMSE_Q10",
-    "text": "我們現在在幾樓？"
+    "text": "我們現在在幾樓？",
+    "scoring_rule": {"type": "contains_any", "expected": ["樓"]}
   },
   {
     "id": "MMSE_Q11",
-    "text": "請記住這三個詞語：藍色、悲傷、火車。"
+    "text": "請記住這三個詞語：藍色、悲傷、火車。",
+    "recording_disabled": true,
+    "exclude_from_scoring": true
   },
   {
     "id": "MMSE_Q12",
-    "text": "請從 100 開始，每次減 7，一直減下去。"
+    "text": "請從 20 開始，每次減 7，一直減下去。",
+    "scoring_rule": {"type": "sequence_subtract", "start": 20, "step": -7, "count": 5, "min_correct": 3}
   },
   {
     "id": "MMSE_Q13",
-    "text": "請說出剛才請你記住的三樣東西（藍色、悲傷、火車）。"
+    "text": "請說出剛才請你記住的三樣東西。",
+    "scoring_rule": {"type": "contains_all", "expected": ["藍色", "悲傷", "火車"]}
+  },
+  {
+    "id": "MMSE_Q14",
+    "text": "這是什麼？",
+    "image": "MMSE_Q14.png",
+    "scoring_rule": {"type": "contains_any", "expected": ["手錶", "腕錶", "鐘錶", "錶"]}
+  },
+  {
+    "id": "MMSE_Q15",
+    "text": "這是什麼？",
+    "image": "MMSE_Q15.png",
+    "scoring_rule": {"type": "contains_any", "expected": ["鉛筆", "筆"]}
   },
   {
     "id": "MMSE_Q16",
-    "text": "（出示手錶）這是什麼？"
+    "text": "請跟我唸一句話：「白紙真正寫黑字」。",
+    "scoring_rule": {"type": "fuzzy", "expected": ["白紙真正寫黑字"], "threshold": 0.7}
   },
   {
     "id": "MMSE_Q17",
-    "text": "（出示鉛筆）這是什麼？"
+    "text": "請照指示做：「請閉上眼睛」。",
+    "manual_confirm": true,
+    "recording_disabled": true,
+    "exclude_from_scoring": true
   },
   {
     "id": "MMSE_Q18",
-    "text": "請跟我唸一句話：「白紙真正寫黑字」。"
+    "text": "請用非慣用手拿這張紙，對折後放在大腿上。",
+    "manual_confirm": true,
+    "recording_disabled": true,
+    "exclude_from_scoring": true
   },
   {
     "id": "MMSE_Q19",
-    "text": "請照指示做：「請閉上眼睛」。"
+    "text": "請寫一句語意完整的句子。",
+    "manual_confirm": true,
+    "recording_disabled": true,
+    "exclude_from_scoring": true
   },
   {
     "id": "MMSE_Q20",
-    "text": "請用非慣用手拿這張紙，對折後放在大腿上。"
-  },
-  {
-    "id": "MMSE_Q21",
-    "text": "請寫一句語意完整的句子。"
-  },
-  {
-    "id": "MMSE_Q22",
-    "text": "請照樣畫出這個圖形。"
+    "text": "請照樣畫出這個圖形。",
+    "manual_confirm": true,
+    "recording_disabled": true,
+    "exclude_from_scoring": true
   }
 ]

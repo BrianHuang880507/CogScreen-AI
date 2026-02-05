@@ -6,6 +6,7 @@ param(
     [string]$OutputPath = "result.json",
     [string]$ApiUrl = "https://play-game-api.azurewebsites.net/v1.0/telemetry/info",
     [string]$PayloadPath = "data\\reports\\mock_full_result.json",
+    [string]$SaveResponsePath = "result_api_response.json",
     [switch]$Submit,
     [switch]$DirectPost 
 )
@@ -29,6 +30,8 @@ if ($DirectPost) {
     $resp = Invoke-WebRequest -Method Post -Uri $ApiUrl -Body $wrappedBody -ContentType "application/json" -UseBasicParsing
     Write-Host "Direct POST status: $($resp.StatusCode)"
     Write-Host "Direct POST response: $($resp.Content)"
+    $resp.Content | Out-File -Encoding utf8 $SaveResponsePath
+    Write-Host "API response saved to: $SaveResponsePath"
     return
 }
 
@@ -70,8 +73,7 @@ Start-Sleep -Milliseconds 300
 if ($Submit) {
     $submitResult = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/sessions/$sessionId/submit"
     Assert-True ($submitResult.session_id -eq $sessionId) "Submit session_id mismatch."
-    Assert-True ($null -ne $submitResult.report) "Submit missing report."
-    $report = $submitResult.report
+    $report = $submitResult
 } else {
     $report = Invoke-RestMethod -Uri "$BaseUrl/api/sessions/$sessionId/report"
     Assert-True ($report.session_id -eq $sessionId) "Report session_id mismatch."

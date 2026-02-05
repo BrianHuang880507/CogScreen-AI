@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 
 from backend.app import api, storage
+
+load_dotenv()
 
 app = FastAPI(title="Cognitive Q&A Screening")
 

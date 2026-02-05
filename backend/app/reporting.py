@@ -12,12 +12,8 @@ import httpx
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-REPORT_VERSION = "1.0"
-DEFAULT_RULESET_VERSION = dt.date.today().isoformat()
 DEFAULT_DISCLAIMER = (
-    "This is a research/assisted screening prototype. It must not be used for "
-    "diagnosis or as a substitute for clinical assessment. Qualified clinicians "
-    "must interpret all results using authorized, validated instruments."
+    "本結果為研究/輔助篩檢用途，不能用於失智症診斷，請由專業人員解讀。"
 )
 
 
@@ -161,6 +157,53 @@ def _build_summary(instrument_scores: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _summary_message(band: str) -> str:
+    mapping = {
+        "none": "未見明顯認知風險（僅供篩檢參考，非診斷）",
+        "mild": "輕度認知風險（僅供篩檢參考，非診斷）",
+        "moderate": "中度認知風險（僅供篩檢參考，非診斷）",
+        "severe": "高度認知風險（僅供篩檢參考，非診斷）",
+    }
+    return mapping.get(band, "篩檢結果未定（僅供參考）")
+
+
+def _format_instrument_scores(instrument_scores: dict[str, Any]) -> dict[str, Any]:
+    formatted: dict[str, Any] = {
+        "AD8": {"score": None, "max_score": 8, "screen_positive": False},
+        "SPMSQ": {"errors": None, "severity_band": None},
+        "MMSE": {"score": None, "max_score": 30, "severity_band": None},
+        "MoCA": {"score": None, "max_score": 30, "severity_band": None},
+    }
+    if "AD8" in instrument_scores:
+        ad8 = instrument_scores["AD8"]
+        formatted["AD8"] = {
+            "score": ad8.get("score"),
+            "max_score": ad8.get("max_score", 8),
+            "screen_positive": ad8.get("screen_positive"),
+        }
+    if "SPMSQ" in instrument_scores:
+        spmsq = instrument_scores["SPMSQ"]
+        formatted["SPMSQ"] = {
+            "errors": spmsq.get("errors"),
+            "severity_band": spmsq.get("severity_band"),
+        }
+    if "MMSE" in instrument_scores:
+        mmse = instrument_scores["MMSE"]
+        formatted["MMSE"] = {
+            "score": mmse.get("score"),
+            "max_score": mmse.get("max_score", 30),
+            "severity_band": mmse.get("severity_band"),
+        }
+    if "MOCA" in instrument_scores:
+        moca = instrument_scores["MOCA"]
+        formatted["MoCA"] = {
+            "score": moca.get("score"),
+            "max_score": moca.get("max_score", 30),
+            "severity_band": moca.get("severity_band"),
+        }
+    return formatted
+
+
 def build_report(session_id: str) -> dict[str, Any]:
     session = storage.get_session(session_id)
     if not session:
@@ -177,52 +220,55 @@ def build_report(session_id: str) -> dict[str, Any]:
         question = question_map.get(question_id, {})
         rt_vad = row.get("reaction_time_vad_ms")
         rt_whisper = row.get("reaction_time_whisper_ms")
-        method_preferred = None
-        if rt_whisper is not None:
-            method_preferred = "whisper"
-        elif rt_vad is not None:
-            method_preferred = "vad"
-        quality_flags: list[str] = []
-        if rt_whisper is not None and rt_vad is not None:
-            if abs(rt_whisper - rt_vad) > 500:
-                quality_flags.append("vad_whisper_gap_large")
 
         rule_score = _parse_json(row.get("rule_score_json"))
         llm_judge = _parse_json(row.get("llm_judge_json"))
-        scoring: dict[str, Any] = {}
-        if rule_score:
-            scoring["rule_based"] = _format_rule_score(rule_score)
-        if llm_judge:
-            scoring["llm_judge"] = llm_judge
+        manual_value = row.get("manual_confirmed")
+        if manual_value is not None:
+            is_correct = bool(manual_value)
+        elif rule_score and "is_correct" in rule_score:
+            is_correct = bool(rule_score.get("is_correct"))
+        elif llm_judge and "is_correct" in llm_judge:
+            is_correct = bool(llm_judge.get("is_correct"))
+        else:
+            is_correct = None
+
+        instrument_raw = (session.get("instrument") or question.get("instrument") or "").lower()
+        instrument_label = {
+            "ad8": "AD8",
+            "spmsq": "SPMSQ",
+            "mmse": "MMSE",
+            "moca": "MoCA",
+        }.get(instrument_raw, instrument_raw.upper() or None)
 
         response_items.append(
             {
                 "question_id": question_id,
-                "instrument": session.get("instrument") or question.get("instrument"),
-                "asked_at": row.get("created_at"),
-                "audio_url": question.get("audio_url") or f"/static/questions/{question_id}.mp3",
+                "instrument": instrument_label,
                 "transcript": row.get("transcript"),
-                "reaction_time": {
-                    "vad_ms": rt_vad,
-                    "whisper_ms": rt_whisper,
-                    "method_preferred": method_preferred,
-                    "quality_flags": quality_flags,
+                "reaction_time_ms": {
+                    "vad": rt_vad,
+                    "whisper": rt_whisper,
                 },
-                "scoring": scoring,
+                "is_correct": is_correct,
             }
         )
 
     instrument_scores = _build_instrument_scores(instrument_scores_rows)
-    summary = _build_summary(instrument_scores)
+    summary_full = _build_summary(instrument_scores)
+    summary = {
+        "screening_risk_band": summary_full.get("screening_risk_band"),
+        "screening_risk_level": summary_full.get("screening_risk_level"),
+        "screen_positive": summary_full.get("screen_positive"),
+        "needs_followup": summary_full.get("needs_followup"),
+        "message": _summary_message(summary_full.get("screening_risk_band") or "none"),
+    }
 
     return {
-        "version": REPORT_VERSION,
-        "ruleset_version": os.getenv("COGSCREEN_RULESET_VERSION", DEFAULT_RULESET_VERSION),
         "session_id": session_id,
-        "patient_id": session.get("patient_id"),
         "created_at": session.get("created_at"),
         "summary": summary,
-        "instrument_scores": instrument_scores,
+        "instrument_scores": _format_instrument_scores(instrument_scores),
         "responses": response_items,
         "disclaimer": os.getenv("COGSCREEN_DISCLAIMER", DEFAULT_DISCLAIMER),
     }

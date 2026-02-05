@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260131" />
+    <link rel="stylesheet" href="styles.css?v=20260203" />
   </head>
   <body data-page="exam">
     <div class="app">
@@ -50,6 +50,11 @@
             <div id="questionBigText" class="question-big">&#x8acb;&#x6309;&#x4e0b;&#x4e00;&#x984c;&#x958b;&#x59cb;&#x3002;</div>
           </div>
 
+          <div id="questionMedia" class="question-media hidden">
+            <div id="questionImagePlaceholder" class="question-image-placeholder">&#x53ef;&#x653e;&#x7f6e;&#x984c;&#x76ee;&#x5716;&#x7247;</div>
+            <img id="questionImage" class="question-image hidden" alt="&#x984c;&#x76ee;&#x5716;&#x7247;" />
+          </div>
+
           <div class="control-row">
             <button id="prevQuestion" class="primary nav-button">&#x4e0a;&#x4e00;&#x984c;</button>
             <audio id="questionAudio" controls></audio>
@@ -72,6 +77,15 @@
             </div>
           </div>
 
+          <div id="manualPanel" class="manual-panel hidden">
+            <button id="manualConfirm" class="manual-button is-primary" type="button">
+              &#x52d5;&#x4f5c;&#x5df2;&#x78ba;&#x8a8d;
+            </button>
+            <button id="manualReject" class="manual-button is-ghost" type="button">
+              &#x52d5;&#x4f5c;&#x672a;&#x78ba;&#x5be6;
+            </button>
+          </div>
+
           <p id="status" class="status visually-hidden">&#x7b49;&#x5f85;&#x958b;&#x59cb;&#x3002;</p>
           <button id="viewResults" class="primary hidden">&#x67e5;&#x770b;&#x6e2c;&#x8a66;&#x7d50;&#x679c;</button>
         </div>
@@ -80,6 +94,6 @@
 
     <button id="logoutBubble" class="logout-bubble hidden">&#x767b;&#x51fa;</button>
     <div id="toast" class="toast"></div>
-    <script src="app.js?v=20260131"></script>
+    <script src="app.js?v=20260203"></script>
   </body>
 </html>

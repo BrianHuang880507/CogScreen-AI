@@ -22,12 +22,29 @@ def load_question_file(filename: str, instrument: str) -> list[dict[str, Any]]:
         text = item.get("text")
         if not question_id or not text:
             continue
+        image_url = item.get("image_url") or item.get("image")
+        if image_url and not str(image_url).startswith("/"):
+            image_url = f"/static/images/{image_url}"
+        manual_confirm = item.get("manual_confirm")
+        recording_disabled = item.get("recording_disabled")
+        exclude_from_scoring = item.get("exclude_from_scoring")
+        scoring_rule = dict(DEFAULT_SCORING_RULE)
+        if isinstance(item.get("scoring_rule"), dict):
+            scoring_rule.update(item["scoring_rule"])
         questions.append(
             {
                 "question_id": str(question_id),
                 "text": str(text),
                 "audio_url": f"/static/questions/{question_id}.mp3",
-                "scoring_rule": dict(DEFAULT_SCORING_RULE),
+                "scoring_rule": scoring_rule,
+                "image_url": image_url,
+                "manual_confirm": bool(manual_confirm) if manual_confirm is not None else None,
+                "recording_disabled": bool(recording_disabled)
+                if recording_disabled is not None
+                else None,
+                "exclude_from_scoring": bool(exclude_from_scoring)
+                if exclude_from_scoring is not None
+                else None,
                 "instrument": instrument,
             }
         )
