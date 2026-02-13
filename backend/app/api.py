@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import json
 import uuid
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from backend.app.llm_judge import judge_answer
 from backend.app.transcribe import transcribe_audio
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 QUESTION_BANK = question_bank.load_all_questions()
 
@@ -72,13 +74,20 @@ async def submit_response(
 
     transcript = None
     transcription_payload: dict[str, Any] | None = None
-    if os.getenv("OPENAI_API_KEY") and not recording_disabled and not exclude_from_scoring:
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if openai_api_key and not recording_disabled:
         transcription_payload = transcribe_audio(
             str(audio_path),
             response_format="verbose_json",
             timestamp_granularities=["word"],
         )
         transcript = transcription_payload.get("text") if transcription_payload else None
+    elif not openai_api_key and not recording_disabled:
+        logger.warning(
+            "OPENAI_API_KEY missing; skipping transcription for session_id=%s question_id=%s",
+            session_id,
+            question_id,
+        )
 
     reaction_time_whisper_ms = (
         reaction_time.reaction_time_whisper_ms(transcription_payload)
