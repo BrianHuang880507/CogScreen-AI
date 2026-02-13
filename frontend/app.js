@@ -1,32 +1,32 @@
 
 const STR = {
-  "loginRequired": "\u8acb\u5148\u767b\u5165\u518d\u9032\u884c\u6e2c\u8a66",
-  "loginMissing": "\u8acb\u8f38\u5165 Session ID",
-  "loginSuccess": "\u767b\u5165\u6210\u529f",
-  "anonSuccess": "\u5df2\u4ee5\u533f\u540d\u65b9\u5f0f\u767b\u5165",
-  "registerSuccess": "\u8a3b\u518a\u6210\u529f",
-  "registerMissing": "\u8acb\u8f38\u5165\u4f7f\u7528\u8005\u540d\u7a31\u8207\u5e74\u9f61",
-  "logoutSuccess": "\u5df2\u767b\u51fa",
-  "anonBlocked": "\u533f\u540d\u767b\u5165\u7121\u6cd5\u9032\u884c\u6e2c\u8a66",
-  "mocaBuilding": "MoCA \u6b63\u5728\u5efa\u7acb\u4e2d",
-  "pickTest": "\u8acb\u5148\u9078\u64c7\u6e2c\u8a66",
-  "tryLater": "\u76ee\u524d\u7121\u6cd5\u8f09\u5165\u984c\u76ee",
-  "waitAudio": "\u7b49\u5f85\u984c\u76ee\u64ad\u653e\u5b8c\u6210",
-  "startHint": "\u8acb\u6309\u4e0b\u4e00\u984c\u958b\u59cb",
-  "starting": "\u6b63\u5728\u5efa\u7acb\u6e2c\u9a57...",
-  "needQuestion": "\u5c1a\u672a\u53d6\u5f97\u984c\u76ee",
-  "recording": "\u9304\u97f3\u4e2d...",
-  "uploading": "\u4e0a\u50b3\u9304\u97f3\u4e2d...",
-  "uploadFail": "\u4e0a\u50b3\u5931\u6557\uff0c\u8acb\u518d\u8a66\u4e00\u6b21",
-  "answered": "\u4f5c\u7b54\u5b8c\u6210\uff0c\u6b63\u5728\u6aa2\u67e5\u9032\u5ea6",
-  "reporting": "\u6b63\u5728\u7522\u751f\u5831\u8868...",
-  "reportFail": "\u5831\u8868\u7522\u751f\u5931\u6557",
-  "reportOk": "\u6e2c\u9a57\u5b8c\u6210",
-  "noResult": "\u5c1a\u7121\u9304\u97f3\u7d50\u679c",
-  "missingInstrument": "\u5c1a\u672a\u9078\u64c7\u6e2c\u9a57",
-  "anonymousName": "\u533f\u540d\u4f7f\u7528\u8005",
-  "candidatePrefix": "\u8003\u751f\uff1a",
-  "examSuffix": "\u6e2c\u9a57"
+  loginRequired: "請先登入再進行測試",
+  loginMissing: "請輸入 Session ID",
+  loginSuccess: "登入成功",
+  anonSuccess: "已以匿名方式登入",
+  registerSuccess: "註冊成功",
+  registerMissing: "請輸入使用者名稱與年齡",
+  logoutSuccess: "已登出",
+  anonBlocked: "匿名登入無法進行測試",
+  mocaBuilding: "MoCA 正在建立中",
+  pickTest: "請先選擇測試",
+  tryLater: "目前無法載入題目",
+  waitAudio: "等待題目播放完成",
+  startHint: "請按下一題開始",
+  starting: "正在建立測驗...",
+  needQuestion: "尚未取得題目",
+  recording: "錄音中...",
+  uploading: "上傳錄音中...",
+  uploadFail: "上傳失敗，請再試一次",
+  answered: "作答完成，正在檢查進度",
+  reporting: "正在產生報表...",
+  reportFail: "報表產生失敗",
+  reportOk: "測驗完成",
+  noResult: "尚無錄音結果",
+  missingInstrument: "尚未選擇測驗",
+  anonymousName: "匿名使用者",
+  candidatePrefix: "考生：",
+  examSuffix: "測驗",
 };
 
 const toast = document.getElementById("toast");
@@ -100,6 +100,7 @@ const VAD_THRESHOLD = 0.02;
 const RESULTS_URL = "https://play-game.azurewebsites.net/#/";
 const IMAGE_PLACEHOLDER_IDS = new Set();
 const SESSION_MAP_KEY = "instrumentSessionMap";
+const API_ROOT = "/api";
 
 const instrumentLabels = {
   mmse: "MMSE",
@@ -115,6 +116,52 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+async function apiRequest(path, options = {}) {
+  const url = `${API_ROOT}${path}`;
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => null);
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error,
+    };
+  }
+}
+
+function apiGet(path) {
+  return apiRequest(path);
+}
+
+function apiPost(path) {
+  return apiRequest(path, {
+    method: "POST",
+  });
+}
+
+function apiPostJson(path, payload) {
+  return apiRequest(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+function apiPostForm(path, formData) {
+  return apiRequest(path, {
+    method: "POST",
+    body: formData,
+  });
 }
 
 function loadSessionMap() {
@@ -529,17 +576,12 @@ async function refreshProgressCounts() {
   if (!sessionId) {
     return;
   }
-  try {
-    const response = await fetch(`/api/sessions/${sessionId}/progress`);
-    if (!response.ok) {
-      return;
-    }
-    const progress = await response.json();
-    totalQuestions = progress.total_questions;
-    setProgressCounts(progress.answered, progress.total_questions);
-  } catch (error) {
+  const result = await apiGet(`/sessions/${sessionId}/progress`);
+  if (!result.ok || !result.data) {
     return;
   }
+  totalQuestions = result.data.total_questions;
+  setProgressCounts(result.data.answered, result.data.total_questions);
 }
 
 async function createSession() {
@@ -550,15 +592,15 @@ async function createSession() {
     instrument: selectedInstrument,
     config: { age },
   };
-  const response = await fetch("/api/sessions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
-  sessionId = data.session_id;
+  const result = await apiPostJson("/sessions", payload);
+  if (!result.ok || !result.data || !result.data.session_id) {
+    setStatus(STR.tryLater);
+    return false;
+  }
+  sessionId = result.data.session_id;
   setStoredSessionId(selectedInstrument, sessionId);
   await refreshProgressCounts();
+  return true;
 }
 
 function setCurrentQuestion(question, index) {
@@ -591,15 +633,15 @@ function setCurrentQuestion(question, index) {
 }
 
 async function fetchNextQuestion() {
-  const response = await fetch(`/api/sessions/${sessionId}/next`);
-  if (!response.ok) {
+  const result = await apiGet(`/sessions/${sessionId}/next`);
+  if (!result.ok || !result.data) {
     setStatus(STR.tryLater);
     if (viewResultsButton) {
       viewResultsButton.classList.remove("hidden");
     }
     return null;
   }
-  return response.json();
+  return result.data;
 }
 
 async function loadNextQuestion() {
@@ -680,7 +722,7 @@ async function startExam(instrument) {
   const storedSessionId = getStoredSessionId(instrument);
   if (storedSessionId) {
     sessionId = storedSessionId;
-    const progress = await fetch(`/api/sessions/${sessionId}/progress`);
+    const progress = await apiGet(`/sessions/${sessionId}/progress`);
     if (progress.ok) {
       await refreshProgressCounts();
       await loadNextQuestion();
@@ -688,7 +730,10 @@ async function startExam(instrument) {
     }
     sessionId = null;
   }
-  await createSession();
+  const created = await createSession();
+  if (!created) {
+    return;
+  }
   await loadNextQuestion();
 }
 
@@ -818,19 +863,16 @@ async function uploadResponse(blob, filename = "response.webm", manualOverride =
   } else if (manualConfirmed) {
     query.set("manual_confirmed", "true");
   }
-  const response = await fetch(
-    `/api/sessions/${sessionId}/responses?${query.toString()}`,
-    {
-      method: "POST",
-      body: formData,
-    },
+  const result = await apiPostForm(
+    `/sessions/${sessionId}/responses?${query.toString()}`,
+    formData,
   );
-  if (!response.ok) {
+  if (!result.ok) {
     setStatus(STR.uploadFail);
     pendingNavigation = null;
     return false;
   }
-  const data = await response.json().catch(() => ({}));
+  const data = result.data || {};
   const transcript = data && data.transcript ? String(data.transcript) : "";
   if (currentQuestion) {
     answerCache.set(questionId, transcript || STR.noResult);
@@ -872,16 +914,13 @@ async function submitReport({ showStatus = false, redirectOnSuccess = false } = 
   if (showStatus) {
     setStatus(STR.reporting);
   }
-  const submitResponse = await fetch(`/api/sessions/${sessionId}/submit`, {
-    method: "POST",
-  });
-  if (!submitResponse.ok) {
+  const submitResult = await apiPost(`/sessions/${sessionId}/submit`);
+  if (!submitResult.ok) {
     if (showStatus) {
       setStatus(STR.reportFail);
     }
     return false;
   }
-  await submitResponse.json().catch(() => ({}));
   if (viewResultsButton) {
     viewResultsButton.classList.remove("hidden");
   }
@@ -898,11 +937,11 @@ async function maybeSubmitReport() {
   if (!sessionId) {
     return;
   }
-  const progressResponse = await fetch(`/api/sessions/${sessionId}/progress`);
-  if (!progressResponse.ok) {
+  const progressResult = await apiGet(`/sessions/${sessionId}/progress`);
+  if (!progressResult.ok || !progressResult.data) {
     return;
   }
-  const progress = await progressResponse.json();
+  const progress = progressResult.data;
   if (progress.is_complete) {
     await submitReport({ showStatus: true });
     clearStoredSessionId(selectedInstrument);

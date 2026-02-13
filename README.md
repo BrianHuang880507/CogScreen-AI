@@ -1,33 +1,37 @@
-# Cognitive Q&A Screening (Research Prototype)
+# 認知問答篩檢系統（研究原型）
 
-> **重要聲明（務必保留）**  
-> 這是一個「研究／輔助篩檢」原型，用於量測口語問答反應與回答正確度；**不能**用來做失智症診斷或取代臨床評估。任何結果都必須由合格醫事人員解讀，並以經授權、經驗證的量表與臨床流程為準。
+> **重要聲明**  
+> 本專案為「研究／輔助篩檢」原型，用於量測口語問答反應時間與回答正確度。  
+> **不得**用於失智症診斷，亦不得取代臨床評估。任何結果必須由合格醫事人員解讀，並搭配經授權、經驗證之量表與臨床流程。
 
-## Overview
+## 專案簡介
 
-This project is a **research/assisted screening** prototype for measuring spoken Q&A reaction time and response accuracy using a web-based workflow (browser recording + FastAPI backend). It **must not** be used for dementia diagnosis.
+此專案提供一套 Web 版流程：
 
-## Features
+1. 前端播放題目音檔並錄音。
+2. 後端接收音檔，進行語音轉文字與評分。
+3. 產出每題反應時間、正確度與整體報表。
 
-- Web UI using MediaRecorder for audio recording and question playback.
-- FastAPI backend for session flow, transcription, scoring, and reporting.
-- Reaction time from:
-  - Whisper word timestamps (`reaction_time_whisper_ms`).
-  - Energy/VAD estimate from client-side audio analysis (`reaction_time_vad_ms`).
-- Rule-based scoring + LLM judge with structured outputs.
-- SQLite storage (sessions/responses/instrument_scores) + CSV export.
-- Auto-submit full report when a session is complete.
+## 主要功能
 
-## Licensing / Training Notices (Very Important)
+- 使用 `MediaRecorder` 進行瀏覽器錄音。
+- FastAPI 提供測驗流程 API（建立 session、取題、上傳回答、報表）。
+- 反應時間同時支援：
+  - `reaction_time_whisper_ms`（Whisper 時間戳）
+  - `reaction_time_vad_ms`（前端 VAD 粗估）
+- 規則式判分 + LLM 判分（結構化輸出）。
+- SQLite 儲存 session、作答與量表分數。
+- 作答完成後可自動提交完整報表。
 
-- **MMSE** and **MoCA** are protected instruments with licensing/training requirements. Do **not** ship or publish their full question text in this repo. Obtain proper permissions before use.
-- **AD-8** also has licensing/permission policies. Do **not** include full instrument text unless authorized.
+## 授權與使用限制（非常重要）
 
-Only schemas/examples are included here; external instrument JSONs should live in a private location.
+- **MMSE**、**MoCA** 可能涉及版權、授權或訓練認證要求。請勿在公開 repo 放入完整題目內容。
+- **AD-8** 也有使用授權與政策限制，請依官方規範執行。
+- 公開專案建議僅保留：資料 schema、範例、計分引擎。完整題庫請放私有環境。
 
-## Project Structure
+## 專案結構
 
-```
+```text
 backend/
   app/
     api.py
@@ -41,21 +45,26 @@ backend/
     scoring_rules.py
     llm_judge.py
     instruments/
-scripts/
-  tts_questions.py
 frontend/
   index.html
+  test.html
+  exam.html
+  qa.html
   app.js
   styles.css
 static/
   questions/
 data/
-  AD8_questions.json
-  MMSE_questions.json
-  SPMSQ_questions.json
+scripts/
+tests/
 ```
 
-## Setup
+## 環境需求
+
+- Python `3.11+`
+- 建議使用虛擬環境（`venv`）
+
+## 安裝與設定
 
 ```bash
 python -m venv .venv
@@ -64,57 +73,61 @@ pip install -e .[dev]
 cp .env.example .env
 ```
 
-## Run (Backend + Frontend)
+## 啟動方式
 
 ```bash
 uvicorn backend.app.main:app --reload
 ```
 
-Open the UI at http://localhost:8000/ (served by FastAPI).
+啟動後開啟：`http://localhost:8000/`  
+前端檔案由 FastAPI 靜態掛載，不需額外前端 dev server。
 
-## Tests
+## 前端頁面說明
+
+- `/`：登入與註冊
+- `/test.html`：選擇量表
+- `/exam.html`：作答頁（播放題目、錄音、上傳）
+- `/qa.html`：量表 Q&A 說明
+
+## API 端點（MVP）
+
+- `POST /api/sessions`：建立 session
+- `GET /api/sessions/{session_id}/next`：取得下一題
+- `POST /api/sessions/{session_id}/responses`：上傳作答音檔
+- `GET /api/sessions/{session_id}/progress`：取得作答進度
+- `GET /api/sessions/{session_id}/report`：取得 session 報表
+- `POST /api/sessions/{session_id}/submit`：產生並提交報表
+
+## 測試
 
 ```bash
 pytest
 ```
 
-## Notes on Question Bank
+## 題庫與音檔
 
-Place question audio files under `static/questions/` (e.g., `MMSE_Q1.mp3`). The question IDs in JSON must match audio filenames.
-Avoid storing copyrighted instrument content in this repo.
+- 題目音檔放在 `static/questions/`（例：`MMSE_Q1.mp3`）。
+- 題庫 JSON 的 `id` 必須對應音檔檔名。
+- 避免在公開 repo 放入未授權的量表全文。
 
-## Question JSON Format
-
-Each question file is a JSON list of objects:
+### 題庫 JSON 範例
 
 ```json
 [
-  { "id": "MMSE_Q1", "text": "Question text here" }
+  { "id": "MMSE_Q1", "text": "題目內容" }
 ]
 ```
 
-## Generate TTS Audio (MP3)
+### 產生題目語音（MP3）
 
 ```bash
 pip install edge-tts
 python scripts/tts_questions.py --questions data/MMSE_questions.json --output static/questions
 ```
 
-## API Endpoints (MVP)
+## 環境變數
 
-- `POST /api/sessions` create session
-- `GET /api/sessions/{session_id}/next` next question
-- `POST /api/sessions/{session_id}/responses` upload response audio
-- `GET /api/sessions/{session_id}/report` full report JSON
-- `GET /api/sessions/{session_id}/progress` answered/total
-- `POST /api/sessions/{session_id}/submit` build report + save + submit to external API
-
-## Auto Submit Flow
-
-The frontend checks completion after each response and calls `/submit` automatically.
-Reports are saved under `data/reports/<session_id>.json`.
-
-## Environment Variables
-
-- `COGSCREEN_API_URL` external API endpoint for `/submit`
-- `COGSCREEN_REPORT_DIR` directory for report JSON files
+- `OPENAI_API_KEY`：啟用語音轉文字與 LLM 判分
+- `COGSCREEN_API_URL`：外部報表 API（`/submit` 會送出）
+- `COGSCREEN_REPORT_DIR`：報表輸出資料夾
+- `COGSCREEN_TIMEZONE`：時區（預設 `Asia/Taipei`）
