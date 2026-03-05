@@ -224,6 +224,22 @@ p {
   padding: 16px;
 }
 
+.card-body h3 {
+  margin-bottom: 10px;
+}
+
+.card-purpose,
+.card-highlight {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.card-highlight {
+  margin-top: 8px;
+  color: #334155;
+}
+
 .exam-header {
   display: flex;
   justify-content: space-between;
@@ -453,10 +469,47 @@ p {
   gap: 16px;
 }
 
+.qa-intro {
+  margin: 4px 0 20px;
+}
+
+.qa-group {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.qa-group:first-of-type {
+  margin-top: 0;
+}
+
+.qa-group-title {
+  margin: 0;
+  font-size: 24px;
+  color: #1e293b;
+}
+
 .qa-item {
   padding: 16px;
   background: #f7f9ff;
   border-radius: 16px;
+  border: 1px solid rgba(30, 41, 59, 0.06);
+}
+
+.qa-item h3 {
+  margin-bottom: 10px;
+}
+
+.qa-item p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.65;
+}
+
+.qa-source {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .toast {

@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260203" />
+    <link rel="stylesheet" href="styles.css?v=20260305" />
   </head>
   <body data-page="qa">
     <div class="app">
@@ -34,23 +34,122 @@
       <main class="content">
         <section class="panel">
           <h1>量表指標 Q&A</h1>
-          <div class="qa-list">
-            <div class="qa-item">
-              <h3>AD8 是什麼？</h3>
-              <p>8 題改變量表，分數越高代表越可能需要進一步評估。常見門檻為 2 分。</p>
+          <p class="muted qa-intro">以下為量表說明與常見解讀，僅供研究/篩檢用途，不能作為診斷依據。</p>
+
+          <div class="qa-group">
+            <h2 class="qa-group-title">AD8（8-item Informant Interview）</h2>
+            <div class="qa-list">
+              <div class="qa-item">
+                <h3>Q1：AD8 是什麼？</h3>
+                <p>AD8 是 8 題知情者問卷，請家屬或照顧者回想「與以往相比是否出現改變」，用來篩檢可能的早期失智或認知退化徵象。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q2：AD8 在測什麼功能？</h3>
+                <p>AD8 聚焦在日常生活中的早期變化，例如記憶、定向感、判斷力，以及處理事情與學習新事物的能力是否比以前更差。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q3：誰來填答最合適？</h3>
+                <p>以了解受測者的人填答最符合原始設計精神（家屬、照顧者、同住者）。受測者自填雖可行，但可能提高假陽性風險。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q4：AD8 怎麼計分？</h3>
+                <p>每題「有改變」記 1 分，「無改變／不知道」記 0 分，總分 0-8 分，分數越高代表可疑變化越多。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q5：AD8 如何解讀？</h3>
+                <p>常見判讀為 0-1 分多屬正常範圍；2 分以上建議進一步做完整評估（例如 MoCA/MMSE、臨床訪談或其他檢查）。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q6：AD8 的優點與限制是什麼？</h3>
+                <p>優點是題數少、施測快，適合早期警示；限制是結果受填答者觀察能力、文化脈絡與施測情境影響。它是篩檢，不是診斷。</p>
+              </div>
             </div>
-            <div class="qa-item">
-              <h3>MMSE 分數怎麼看？</h3>
-              <p>30 分制，分數越高表示整體認知表現越好。分級需考量教育程度。</p>
+            <p class="qa-source">來源建議：Galvin JE et al., Neurology (2005)；Alzheimer's Association AD8 文件。</p>
+          </div>
+
+          <div class="qa-group">
+            <h2 class="qa-group-title">MMSE（Mini-Mental State Examination）</h2>
+            <div class="qa-list">
+              <div class="qa-item">
+                <h3>Q1：MMSE 是什麼？</h3>
+                <p>MMSE 是經典整體認知篩檢量表，常用於快速評估定向感、注意力、記憶、語言與簡單視空能力。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q2：MMSE 測哪些面向？</h3>
+                <p>常見區塊包含時間/地點定向、立即記憶、注意與計算、延遲回憶、語言能力與作圖。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q3：MMSE 怎麼計分？</h3>
+                <p>滿分 30 分，分數越高通常表示整體認知表現越好。施測時間多在 5-10 分鐘，依個案狀況可能延長。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q4：MMSE 有固定切點嗎？</h3>
+                <p>臨床常用的粗略參考是 24 分以下需留意，但解讀必須納入年齡、教育程度與語言文化因素。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q5：MMSE 適合什麼情境？</h3>
+                <p>適合門診與社區初篩，也常用於追蹤同一個案在不同時間點的分數變化。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q6：MMSE 有什麼限制？</h3>
+                <p>對教育程度與文化背景較敏感，對早期執行功能缺損的敏感度可能不足，常需要搭配 MoCA 或完整評估。</p>
+              </div>
             </div>
-            <div class="qa-item">
-              <h3>MoCA 分數怎麼看？</h3>
-              <p>30 分制，常見切點為 26。若教育年數較少可加分。</p>
+            <p class="qa-source">來源建議：Folstein MF et al., Journal of Psychiatric Research (1975)。</p>
+          </div>
+
+          <div class="qa-group">
+            <h2 class="qa-group-title">MoCA（Montreal Cognitive Assessment）</h2>
+            <div class="qa-list">
+              <div class="qa-item">
+                <h3>Q1：MoCA 是什麼？</h3>
+                <p>MoCA 是針對輕度認知障礙設計的篩檢工具，對執行功能、注意力、視空能力與記憶的早期變化較敏感。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q2：MoCA 與 MMSE 的差異？</h3>
+                <p>MoCA 通常對早期變化更敏感；MMSE 偏向整體粗篩與追蹤。實務上常兩者互補使用。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q3：MoCA 怎麼計分？</h3>
+                <p>MoCA 滿分 30 分，常見規則是教育年數小於等於 12 年可加 1 分，最高仍以 30 分為上限。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q4：MoCA 常見切點是多少？</h3>
+                <p>常見參考切點為 26 分以下需留意，但不同族群可能有不同建議切點，平台應提示本土化常模差異。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q5：MoCA 有什麼限制？</h3>
+                <p>MoCA 仍受教育與文化因素影響，單一切點可能造成假陽性，建議搭配臨床訪談與必要檢查。</p>
+              </div>
             </div>
-            <div class="qa-item">
-              <h3>SPMSQ 的 Errors 是什麼？</h3>
-              <p>錯誤題數越多風險越高。常見分級：0-2 正常、3-4 輕度、5-7 中度、8+ 重度。</p>
+            <p class="qa-source">來源建議：Nasreddine ZS et al., Journal of the American Geriatrics Society (2005)。</p>
+          </div>
+
+          <div class="qa-group">
+            <h2 class="qa-group-title">SPMSQ（Short Portable Mental Status Questionnaire）</h2>
+            <div class="qa-list">
+              <div class="qa-item">
+                <h3>Q1：SPMSQ 是什麼？</h3>
+                <p>SPMSQ 是 10 題短量表，用來快速篩檢高齡者可能的認知障礙，以錯誤題數（errors）判讀風險。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q2：SPMSQ 怎麼計分？</h3>
+                <p>SPMSQ 以錯誤題數計算，每題答錯記 1；最後統計總錯誤數，不採 30 分制。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q3：錯誤數如何分級？</h3>
+                <p>常見分級為 0-2 正常、3-4 輕度、5-7 中度、8-10 重度，錯誤越多代表認知受損風險越高。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q4：SPMSQ 的教育校正規則？</h3>
+                <p>常見做法是小學或以下可多容許 1 題錯，高中以上少容許 1 題錯，實作時建議做成可配置規則。</p>
+              </div>
+              <div class="qa-item">
+                <h3>Q5：SPMSQ 適合哪些場景？</h3>
+                <p>適合門診與社區快速初篩，尤其在人力有限、需要短時間判讀時作為後續轉介的前哨指標。</p>
+              </div>
             </div>
+            <p class="qa-source">來源建議：Pfeiffer E., Journal of the American Geriatrics Society (1975)。</p>
           </div>
         </section>
       </main>

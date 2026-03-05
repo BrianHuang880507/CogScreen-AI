@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260203" />
+    <link rel="stylesheet" href="styles.css?v=20260305" />
   </head>
   <body data-page="test">
     <div class="app">
@@ -35,7 +35,7 @@
         <header class="page-header">
           <div>
             <h1>選擇測試題目</h1>
-            <p class="muted">點選量表卡片開始測驗。</p>
+            <p class="muted">點選量表卡片開始測驗。以下文案僅供研究與篩檢參考，不能取代臨床診斷。</p>
           </div>
         </header>
         <div class="card-grid">
@@ -43,28 +43,32 @@
             <div class="card-media media-mmse"></div>
             <div class="card-body">
               <h3>MMSE</h3>
-              <p>30 分制，涵蓋定向、記憶、語言等。</p>
+              <p class="card-purpose">用途：最常用的整體認知篩檢，涵蓋定向感、注意/計算、記憶、語言與作圖。</p>
+              <p class="card-highlight">亮點：可追蹤分數變化與粗分級，但受教育程度影響較大。</p>
             </div>
           </button>
           <button class="test-card" data-instrument="spmsq">
             <div class="card-media media-spmsq"></div>
             <div class="card-body">
               <h3>SPMSQ</h3>
-              <p>以錯誤題數估算認知風險。</p>
+              <p class="card-purpose">用途：10 題短測，以錯誤數快速估計認知狀態，適合門診或社區初篩。</p>
+              <p class="card-highlight">亮點：可用錯誤數分級，並可依教育程度進行校正。</p>
             </div>
           </button>
           <button class="test-card" data-instrument="ad8">
             <div class="card-media media-ad8"></div>
             <div class="card-body">
               <h3>AD8</h3>
-              <p>8 題快速篩檢近期改變。</p>
+              <p class="card-purpose">用途：由家屬或照顧者回報近期改變，用於辨別正常老化與早期失智徵象。</p>
+              <p class="card-highlight">亮點：僅 8 題且快速，常用切點為 2 分以上建議進一步評估。</p>
             </div>
           </button>
           <button class="test-card" data-instrument="moca">
             <div class="card-media media-moca"></div>
             <div class="card-body">
               <h3>MoCA</h3>
-              <p>較細緻的認知篩檢量表。</p>
+              <p class="card-purpose">用途：對輕度認知障礙較敏感，強調執行功能、注意力與視空能力。</p>
+              <p class="card-highlight">亮點：常見滿分 30，教育年數小於等於 12 年可加 1 分。</p>
             </div>
           </button>
         </div>
