@@ -1,4 +1,3 @@
-
 const STR = {
   loginRequired: "請先登入再進行測試",
   loginMissing: "請輸入 Session ID",
@@ -74,7 +73,9 @@ const manualRejectButton = document.getElementById("manualReject");
 const manualPanel = document.getElementById("manualPanel");
 const questionMedia = document.getElementById("questionMedia");
 const questionImage = document.getElementById("questionImage");
-const questionImagePlaceholder = document.getElementById("questionImagePlaceholder");
+const questionImagePlaceholder = document.getElementById(
+  "questionImagePlaceholder",
+);
 
 let sessionId = null;
 let currentQuestion = null;
@@ -242,7 +243,9 @@ function generateSessionId() {
     window.crypto.getRandomValues(bytes);
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0"));
+    const hex = Array.from(bytes, (value) =>
+      value.toString(16).padStart(2, "0"),
+    );
     return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex
       .slice(6, 8)
       .join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`;
@@ -535,7 +538,10 @@ function setManualConfirmState(isConfirmed) {
     return;
   }
   manualConfirmButton.classList.toggle("is-active", manualConfirmed);
-  manualConfirmButton.setAttribute("aria-pressed", manualConfirmed ? "true" : "false");
+  manualConfirmButton.setAttribute(
+    "aria-pressed",
+    manualConfirmed ? "true" : "false",
+  );
 }
 
 function updateManualPanel(question) {
@@ -678,7 +684,10 @@ async function loadNextQuestion() {
   if (!nextQuestion) {
     return;
   }
-  if (currentQuestion && nextQuestion.question_id === currentQuestion.question_id) {
+  if (
+    currentQuestion &&
+    nextQuestion.question_id === currentQuestion.question_id
+  ) {
     const silentBlob = buildSilentWav();
     await uploadResponse(silentBlob, "silence.wav");
     const retry = await fetchNextQuestion();
@@ -859,7 +868,11 @@ async function handleNavigation(direction) {
   }
 }
 
-async function uploadResponse(blob, filename = "response.webm", manualOverride = null) {
+async function uploadResponse(
+  blob,
+  filename = "response.webm",
+  manualOverride = null,
+) {
   if (!sessionId || !currentQuestion) {
     setStatus(STR.needQuestion);
     pendingNavigation = null;
@@ -929,7 +942,10 @@ async function submitManualDecision(isConfirmed) {
   await uploadResponse(silentBlob, "manual.wav", isConfirmed);
 }
 
-async function submitReport({ showStatus = false, redirectTarget = null } = {}) {
+async function submitReport({
+  showStatus = false,
+  redirectTarget = null,
+} = {}) {
   if (!sessionId) {
     return false;
   }
@@ -1048,7 +1064,10 @@ if (nextQuestionButton) {
 
 if (viewResultsButton) {
   viewResultsButton.addEventListener("click", async () => {
-    const ok = await submitReport({ showStatus: true, redirectTarget: "games" });
+    const ok = await submitReport({
+      showStatus: true,
+      redirectTarget: "games",
+    });
     if (!ok) {
       showToast(STR.reportFail);
     }

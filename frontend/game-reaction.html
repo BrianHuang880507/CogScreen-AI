@@ -53,12 +53,22 @@
             <h2>點擊目標</h2>
             <button id="reactionStartButton" class="primary" type="button">開始 20 秒</button>
           </div>
+          <div id="reactionDifficultyPicker" class="difficulty-picker" role="group" aria-label="難度">
+            <button class="difficulty-button is-active" data-difficulty="easy" type="button">簡單</button>
+            <button class="difficulty-button" data-difficulty="medium" type="button">中等</button>
+            <button class="difficulty-button" data-difficulty="hard" type="button">困難</button>
+            <span id="reactionSpeedHint" class="difficulty-hint">速度：慢</span>
+          </div>
           <div class="whack-stats">
             <div>剩餘：<span id="reactionTimer">20.0</span> 秒</div>
             <div>命中：<span id="reactionHits">0</span></div>
             <div>失誤：<span id="reactionMisses">0</span></div>
           </div>
-          <div id="reactionGrid" class="whack-grid"></div>
+          <div id="reactionArena" class="whack-arena">
+            <div id="reactionGrid" class="whack-grid"></div>
+            <img id="reactionHammer" class="whack-hammer" src="/static/images/games/whack-a-mole/hammer.png" alt="" aria-hidden="true" />
+          </div>
+          <audio id="reactionSmashAudio" preload="auto" src="/static/audio/games/smash.mp3"></audio>
           <p id="reactionResult" class="game-result">尚未開始。</p>
         </section>
       </main>

@@ -6,7 +6,10 @@
     <title>失智症統計分析平台 - 遊戲選單</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css?v=20260317" />
   </head>
   <body data-page="games">
@@ -21,7 +24,9 @@
         </div>
         <nav class="nav">
           <a class="nav-link" data-view="login" href="/">登入</a>
-          <a class="nav-link nav-link-test" data-view="test" href="/test.html">測試</a>
+          <a class="nav-link nav-link-test" data-view="test" href="/test.html"
+            >測試</a
+          >
         </nav>
         <div class="nav-bottom">
           <a class="nav-link" data-view="qa" href="/qa.html">Q&A</a>
@@ -35,58 +40,96 @@
         <header class="page-header game-page-header">
           <div>
             <h1>測驗後遊戲選單</h1>
-            <p class="muted">請選擇卡片進入單一遊戲頁面。三個遊戲完成後可前往結果分析。</p>
+            <p class="muted">
+              請選擇卡片進入單一遊戲頁面。三個遊戲完成後可前往結果分析。
+            </p>
           </div>
-          <div class="session-pill">Session ID: <span id="gameSessionId">--</span></div>
+          <div class="session-pill">
+            Session ID: <span id="gameSessionId">--</span>
+          </div>
         </header>
 
         <section class="panel game-summary-panel">
           <div class="game-summary-meta">
-            <p class="game-progress">完成進度：<span id="gamesDone">0/3</span></p>
+            <p class="game-progress">
+              完成進度：<span id="gamesDone">0/3</span>
+            </p>
             <p id="gameStatus" class="muted">點選卡片進入遊戲。</p>
           </div>
-          <button id="goResultsButton" class="primary" type="button" disabled>前往結果分析</button>
+          <button id="goResultsButton" class="primary" type="button" disabled>
+            前往結果分析
+          </button>
         </section>
 
         <div class="card-grid game-card-grid">
-          <button class="test-card game-select-card" data-game="logic" type="button">
+          <button
+            class="test-card game-select-card"
+            data-game="logic"
+            type="button"
+          >
             <div class="card-media">
-              <img src="/static/images/games/logic-classify.svg" alt="邏輯圖形分類" />
+              <img
+                src="/static/images/games/logic-classify.svg"
+                alt="邏輯圖形分類"
+              />
             </div>
             <div class="card-body">
               <div class="game-card-head">
                 <h3>邏輯：圖形分類</h3>
-                <span class="game-state-chip" data-game-chip="logic">未完成</span>
+                <span class="game-state-chip" data-game-chip="logic"
+                  >未完成</span
+                >
               </div>
-              <p class="card-purpose">拖曳圖形到對應分類區，測量分類正確率與策略。</p>
+              <p class="card-purpose">
+                拖曳圖形到對應分類區，測量分類正確率與策略。
+              </p>
               <p class="card-highlight">形式：單頁互動拖放。</p>
             </div>
           </button>
 
-          <button class="test-card game-select-card" data-game="reaction" type="button">
+          <button
+            class="test-card game-select-card"
+            data-game="reaction"
+            type="button"
+          >
             <div class="card-media">
-              <img src="/static/images/games/reaction-whack.svg" alt="反應打地鼠" />
+              <img
+                src="/static/images/games/reaction-whack.svg"
+                alt="反應打地鼠"
+              />
             </div>
             <div class="card-body">
               <div class="game-card-head">
                 <h3>反應：打地鼠</h3>
-                <span class="game-state-chip" data-game-chip="reaction">未完成</span>
+                <span class="game-state-chip" data-game-chip="reaction"
+                  >未完成</span
+                >
               </div>
-              <p class="card-purpose">20 秒內盡量命中目標，觀察反應速度與失誤率。</p>
+              <p class="card-purpose">
+                20 秒內盡量命中目標，觀察反應速度與失誤率。
+              </p>
               <p class="card-highlight">形式：單頁節奏點擊。</p>
             </div>
           </button>
 
-          <button class="test-card game-select-card" data-game="focus" type="button">
+          <button
+            class="test-card game-select-card"
+            data-game="focus"
+            type="button"
+          >
             <div class="card-media">
               <img src="/static/images/games/focus-spot.svg" alt="專注找不同" />
             </div>
             <div class="card-body">
               <div class="game-card-head">
                 <h3>專注：找不同</h3>
-                <span class="game-state-chip" data-game-chip="focus">未完成</span>
+                <span class="game-state-chip" data-game-chip="focus"
+                  >未完成</span
+                >
               </div>
-              <p class="card-purpose">在目標圖中找出差異，觀察視覺專注與搜尋能力。</p>
+              <p class="card-purpose">
+                在目標圖中找出差異，觀察視覺專注與搜尋能力。
+              </p>
               <p class="card-highlight">形式：單頁差異偵測。</p>
             </div>
           </button>

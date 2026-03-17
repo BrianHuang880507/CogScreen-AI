@@ -16,10 +16,17 @@ body {
   margin: 0;
   font-family: "Noto Sans TC", "Segoe UI", sans-serif;
   color: #1a1d24;
-  background: radial-gradient(circle at top, #1b2542, #0d1222 40%, #0a0f1e 100%);
+  background: radial-gradient(
+    circle at top,
+    #1b2542,
+    #0d1222 40%,
+    #0a0f1e 100%
+  );
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-family: "Space Grotesk", "Noto Sans TC", sans-serif;
   margin: 0 0 12px;
 }
@@ -120,7 +127,6 @@ p {
   min-height: 100vh;
 }
 
-
 .panel {
   background: var(--panel);
   border-radius: 20px;
@@ -200,7 +206,9 @@ a.ghost {
   background: #fff;
   box-shadow: var(--shadow);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .test-card:hover {
@@ -287,7 +295,9 @@ a.ghost {
 }
 
 .game-select-card.is-done {
-  box-shadow: 0 18px 30px rgba(15, 21, 36, 0.14), inset 0 0 0 2px rgba(34, 197, 94, 0.35);
+  box-shadow:
+    0 18px 30px rgba(15, 21, 36, 0.14),
+    inset 0 0 0 2px rgba(34, 197, 94, 0.35);
 }
 
 .exam-header {
@@ -430,7 +440,10 @@ a.ghost {
   border-radius: 999px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .manual-button:hover {
@@ -792,27 +805,150 @@ input {
   color: #1e293b;
 }
 
-.whack-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(72px, 1fr));
-  gap: 12px;
+.difficulty-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.whack-hole {
-  height: 72px;
-  border: none;
-  border-radius: 14px;
-  background: #dbeafe;
+.difficulty-button {
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #ffffff;
   color: #1e293b;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.12s ease;
 }
 
-.whack-hole.is-active {
-  background: #f97316;
-  color: #fff;
-  transform: scale(1.04);
+.difficulty-button.is-active {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
+.difficulty-button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.difficulty-hint {
+  margin-left: 8px;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.whack-arena {
+  position: relative;
+  border-radius: 16px;
+  padding: 14px;
+  background: #67c23a
+    url("/static/images/games/whack-a-mole/grass background v2.avif");
+  background-size: cover;
+  background-position: center bottom;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.whack-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 16px;
+}
+
+.whack-hole {
+  position: relative;
+  height: 122px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 14px;
+  transition: transform 0.08s ease;
+}
+
+.whack-hole:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
+}
+
+.hole-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 92px;
+  height: 24px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #0f172a 18%, #4c2d24 72%);
+}
+
+.mole-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: min(74px, 64%);
+  opacity: 0;
+  transform: translate(-50%, 122%);
+  transition:
+    transform 0.17s ease,
+    opacity 0.12s ease;
+  user-select: none;
+  pointer-events: none;
+}
+
+.mole-whacked {
+  opacity: 0;
+}
+
+.whack-hole.is-active .mole-base {
+  opacity: 1;
+  transform: translate(-50%, 42%);
+}
+
+.whack-hole.is-whacked .mole-base {
+  opacity: 0;
+  transform: translate(-50%, 42%);
+}
+
+.whack-hole.is-whacked .mole-whacked {
+  opacity: 1;
+  transform: translate(-50%, 42%);
+}
+
+.whack-hole.is-missed {
+  transform: translateY(1px);
+}
+
+.whack-hammer {
+  --hammer-x: 56px;
+  --hammer-y: 56px;
+  position: absolute;
+  left: var(--hammer-x);
+  top: var(--hammer-y);
+  width: 62px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-12%, -84%) rotate(-24deg);
+  transform-origin: 18% 82%;
+  transition:
+    transform 0.08s ease,
+    opacity 0.12s ease;
+}
+
+.whack-arena:hover .whack-hammer {
+  opacity: 0.92;
+}
+
+.whack-hammer.is-smashing {
+  transform: translate(-2%, -68%) rotate(28deg) scale(0.94);
+}
+
+@media (hover: none) {
+  .whack-hammer {
+    display: none;
+  }
 }
 
 .spot-stage {
@@ -826,7 +962,13 @@ input {
   min-height: 210px;
   border-radius: 14px;
   border: 1px solid rgba(15, 23, 42, 0.12);
-  background: linear-gradient(180deg, #bae6fd 0%, #e0f2fe 52%, #bbf7d0 52%, #dcfce7 100%);
+  background: linear-gradient(
+    180deg,
+    #bae6fd 0%,
+    #e0f2fe 52%,
+    #bbf7d0 52%,
+    #dcfce7 100%
+  );
   overflow: hidden;
 }
 

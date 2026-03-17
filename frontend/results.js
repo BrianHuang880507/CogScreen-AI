@@ -90,7 +90,12 @@
     if (!riskBadgeEl) {
       return;
     }
-    riskBadgeEl.classList.remove("risk-none", "risk-mild", "risk-moderate", "risk-severe");
+    riskBadgeEl.classList.remove(
+      "risk-none",
+      "risk-mild",
+      "risk-moderate",
+      "risk-severe",
+    );
     riskBadgeEl.classList.add(`risk-${band || "none"}`);
   }
 
@@ -120,7 +125,13 @@
     const ad8 = scores.AD8 || {};
     rows.push(
       createInstrumentCard("AD8", [
-        { label: "分數", value: ad8.score !== null && ad8.score !== undefined ? `${ad8.score}/${ad8.max_score || 8}` : "--" },
+        {
+          label: "分數",
+          value:
+            ad8.score !== null && ad8.score !== undefined
+              ? `${ad8.score}/${ad8.max_score || 8}`
+              : "--",
+        },
         { label: "篩檢陽性", value: ad8.screen_positive ? "是" : "否" },
       ]),
     );
@@ -128,7 +139,13 @@
     const spmsq = scores.SPMSQ || {};
     rows.push(
       createInstrumentCard("SPMSQ", [
-        { label: "錯誤數", value: spmsq.errors !== null && spmsq.errors !== undefined ? String(spmsq.errors) : "--" },
+        {
+          label: "錯誤數",
+          value:
+            spmsq.errors !== null && spmsq.errors !== undefined
+              ? String(spmsq.errors)
+              : "--",
+        },
         { label: "風險分級", value: formatSeverityText(spmsq.severity_band) },
       ]),
     );
@@ -136,7 +153,13 @@
     const mmse = scores.MMSE || {};
     rows.push(
       createInstrumentCard("MMSE", [
-        { label: "分數", value: mmse.score !== null && mmse.score !== undefined ? `${mmse.score}/${mmse.max_score || 30}` : "--" },
+        {
+          label: "分數",
+          value:
+            mmse.score !== null && mmse.score !== undefined
+              ? `${mmse.score}/${mmse.max_score || 30}`
+              : "--",
+        },
         { label: "風險分級", value: formatSeverityText(mmse.severity_band) },
       ]),
     );
@@ -144,7 +167,13 @@
     const moca = scores.MoCA || {};
     rows.push(
       createInstrumentCard("MoCA", [
-        { label: "分數", value: moca.score !== null && moca.score !== undefined ? `${moca.score}/${moca.max_score || 30}` : "--" },
+        {
+          label: "分數",
+          value:
+            moca.score !== null && moca.score !== undefined
+              ? `${moca.score}/${moca.max_score || 30}`
+              : "--",
+        },
         { label: "風險分級", value: formatSeverityText(moca.severity_band) },
       ]),
     );
@@ -302,7 +331,8 @@
       avgVadEl.textContent = avgVad === null ? "--" : formatMs(avgVad);
     }
     if (avgWhisperEl) {
-      avgWhisperEl.textContent = avgWhisper === null ? "--" : formatMs(avgWhisper);
+      avgWhisperEl.textContent =
+        avgWhisper === null ? "--" : formatMs(avgWhisper);
     }
     if (accuracyRateEl) {
       if (!judged.length) {
@@ -350,10 +380,13 @@
         summaryMessageEl.textContent = summary.message || "已完成報表分析。";
       }
       if (needsFollowupEl) {
-        needsFollowupEl.textContent = summary.needs_followup ? "建議追蹤" : "暫無";
+        needsFollowupEl.textContent = summary.needs_followup
+          ? "建議追蹤"
+          : "暫無";
       }
       if (disclaimerEl) {
-        disclaimerEl.textContent = report.disclaimer || disclaimerEl.textContent;
+        disclaimerEl.textContent =
+          report.disclaimer || disclaimerEl.textContent;
       }
       renderInstrumentScores(report.instrument_scores || {});
       renderResponses(Array.isArray(report.responses) ? report.responses : []);
