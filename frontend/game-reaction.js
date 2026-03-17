@@ -25,12 +25,30 @@
   const smashAudioEl = document.getElementById("reactionSmashAudio");
   const resultEl = document.getElementById("reactionResult");
 
-  const MOLE_IMAGE = "/static/images/games/whack-a-mole/mole.png";
-  const MOLE_WHACKED_IMAGE = "/static/images/games/whack-a-mole/mole-whacked.png";
+  const LEGACY_MOLE_IMAGE = "/static/images/games/whack-a-mole/mole.png";
+  const LEGACY_MOLE_WHACKED_IMAGE = "/static/images/games/whack-a-mole/mole-whacked.png";
+  const LEGACY_HAMMER_IMAGE = "/static/images/games/whack-a-mole/hammer.png";
+  const FRAME_MS = 45;
+
+  const padFrameNumber = (value) => String(value).padStart(4, "0");
+  const buildFramePath = (prefix, frameNumber) =>
+    `/static/images/games/whack-a-mole/${prefix}_${padFrameNumber(frameNumber)}.png`;
+  const buildFrameRange = (prefix, start, end) => {
+    const frames = [];
+    for (let value = start; value <= end; value += 1) {
+      frames.push(buildFramePath(prefix, value));
+    }
+    return frames;
+  };
+
+  let moleEmergeFrames = buildFrameRange("mole", 1, 6);
+  let moleWhackedFrames = buildFrameRange("mole", 37, 44);
+  let hammerFrames = buildFrameRange("hammer", 1, 4);
+  let moleHoleImage = moleEmergeFrames[0];
   const DIFFICULTY_CONFIG = {
-    easy: { label: "簡單", intervalMs: 1700, speedText: "慢" },
-    medium: { label: "中等", intervalMs: 1400, speedText: "中慢" },
-    hard: { label: "困難", intervalMs: 1100, speedText: "中" },
+    easy: { label: "Easy", intervalMs: 1700, speedText: "slow" },
+    medium: { label: "Medium", intervalMs: 1400, speedText: "normal" },
+    hard: { label: "Hard", intervalMs: 1100, speedText: "fast" },
   };
 
   let holes = [];
@@ -43,6 +61,135 @@
   let moleTimer = null;
   let redirectTimer = null;
   let selectedDifficulty = "easy";
+  let hammerResetTimer = null;
+  const animationState = new WeakMap();
+
+  function getState(node) {
+    if (!animationState.has(node)) {
+      animationState.set(node, {});
+    }
+    return animationState.get(node);
+  }
+
+  function clearTimer(timerId) {
+    if (timerId) {
+      window.clearTimeout(timerId);
+    }
+  }
+
+  function preloadFrameCandidates(candidates, fallbackFrame) {
+    const pending = candidates.map(
+      (path) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(path);
+          img.onerror = () => resolve(null);
+          img.src = path;
+        })
+    );
+    return Promise.all(pending).then((loaded) => {
+      const available = loaded.filter(Boolean);
+      if (available.length > 0) {
+        return available;
+      }
+      return fallbackFrame ? [fallbackFrame] : [];
+    });
+  }
+
+  function preloadAnimationAssets() {
+    return Promise.all([
+      preloadFrameCandidates(moleEmergeFrames, LEGACY_MOLE_IMAGE),
+      preloadFrameCandidates(moleWhackedFrames, LEGACY_MOLE_WHACKED_IMAGE),
+      preloadFrameCandidates(hammerFrames, LEGACY_HAMMER_IMAGE),
+    ]).then(([loadedEmerge, loadedWhacked, loadedHammer]) => {
+      moleEmergeFrames = loadedEmerge;
+      moleWhackedFrames = loadedWhacked;
+      hammerFrames = loadedHammer;
+      moleHoleImage = moleEmergeFrames[0] || LEGACY_MOLE_IMAGE;
+      if (hammerEl && hammerFrames[0]) {
+        hammerEl.src = hammerFrames[0];
+      }
+    });
+  }
+
+  function playFrameSequence(imageEl, frames, frameMs = FRAME_MS) {
+    if (!imageEl || !frames.length) {
+      return () => {};
+    }
+    let timerId = null;
+    let canceled = false;
+    const tick = (index) => {
+      if (canceled) {
+        return;
+      }
+      imageEl.src = frames[index];
+      if (index < frames.length - 1) {
+        timerId = window.setTimeout(() => tick(index + 1), frameMs);
+      }
+    };
+    tick(0);
+    return () => {
+      canceled = true;
+      clearTimer(timerId);
+    };
+  }
+
+  function getHoleElements(hole) {
+    return {
+      baseEl: hole.querySelector(".mole-base"),
+      whackedEl: hole.querySelector(".mole-whacked"),
+    };
+  }
+
+  function setHoleBaseFrame(hole, framePath) {
+    const { baseEl } = getHoleElements(hole);
+    if (baseEl && framePath) {
+      baseEl.src = framePath;
+    }
+  }
+
+  function setHoleWhackedFrame(hole, framePath) {
+    const { whackedEl } = getHoleElements(hole);
+    if (whackedEl && framePath) {
+      whackedEl.src = framePath;
+    }
+  }
+
+  function stopHoleAnimations(hole) {
+    const state = getState(hole);
+    if (state.cancelEmerge) {
+      state.cancelEmerge();
+      state.cancelEmerge = null;
+    }
+    if (state.cancelWhacked) {
+      state.cancelWhacked();
+      state.cancelWhacked = null;
+    }
+    clearTimer(state.whackedResetTimer);
+    state.whackedResetTimer = null;
+  }
+
+  function runEmergeAnimation(hole) {
+    stopHoleAnimations(hole);
+    setHoleBaseFrame(hole, moleEmergeFrames[0]);
+    const { baseEl } = getHoleElements(hole);
+    const state = getState(hole);
+    state.cancelEmerge = playFrameSequence(baseEl, moleEmergeFrames);
+  }
+
+  function runWhackedAnimation(hole) {
+    stopHoleAnimations(hole);
+    setHoleWhackedFrame(hole, moleWhackedFrames[0]);
+    const { whackedEl } = getHoleElements(hole);
+    const state = getState(hole);
+    state.cancelWhacked = playFrameSequence(whackedEl, moleWhackedFrames);
+    const duration = Math.max(FRAME_MS * moleWhackedFrames.length + 24, 120);
+    state.whackedResetTimer = window.setTimeout(() => {
+      hole.classList.remove("is-whacked");
+      stopHoleAnimations(hole);
+      setHoleWhackedFrame(hole, moleWhackedFrames[0]);
+    }, duration);
+  }
 
   function setStatus(text) {
     if (!statusEl) {
@@ -94,7 +241,7 @@
       button.disabled = running;
     });
     if (speedHintEl) {
-      speedHintEl.textContent = `速度：${config.speedText}`;
+      speedHintEl.textContent = `Speed: ${config.speedText}`;
     }
   }
 
@@ -115,13 +262,13 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("三個遊戲已完成，將前往結果分析。");
+      setStatus("All mini-games completed. Redirecting to report...");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
       }, 1500);
       return;
     }
-    setStatus("本遊戲已完成，將返回遊戲選單。");
+    setStatus("Reaction game completed. Returning to game hub...");
     redirectTimer = window.setTimeout(() => {
       window.location.href = flow.buildGameHubUrl(sessionId);
     }, 1500);
@@ -130,7 +277,16 @@
   function setActiveHole(index) {
     activeHole = index;
     holes.forEach((hole, holeIndex) => {
-      hole.classList.toggle("is-active", holeIndex === index);
+      const isActive = holeIndex === index;
+      hole.classList.toggle("is-active", isActive);
+      if (isActive) {
+        hole.classList.remove("is-whacked");
+        setHoleWhackedFrame(hole, moleWhackedFrames[0]);
+        runEmergeAnimation(hole);
+      } else if (!hole.classList.contains("is-whacked")) {
+        stopHoleAnimations(hole);
+        setHoleBaseFrame(hole, moleEmergeFrames[0]);
+      }
     });
   }
 
@@ -143,7 +299,7 @@
   }
 
   function chooseHole() {
-    if (!running) {
+    if (!running || !holes.length) {
       return;
     }
     let next = Math.floor(Math.random() * holes.length);
@@ -164,16 +320,33 @@
       moleTimer = null;
     }
     setActiveHole(-1);
+    holes.forEach((hole) => {
+      stopHoleAnimations(hole);
+      hole.classList.remove("is-active", "is-whacked", "is-missed");
+      setHoleBaseFrame(hole, moleEmergeFrames[0]);
+      setHoleWhackedFrame(hole, moleWhackedFrames[0]);
+    });
+    clearTimer(hammerResetTimer);
+    hammerResetTimer = null;
+    if (hammerEl) {
+      const hammerState = getState(hammerEl);
+      if (hammerState.cancelSwing) {
+        hammerState.cancelSwing();
+        hammerState.cancelSwing = null;
+      }
+      hammerEl.classList.remove("is-smashing");
+      hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
+    }
     deadline = Date.now();
     renderStats();
     if (startButton) {
       startButton.disabled = false;
-      startButton.textContent = "再玩一次";
+      startButton.textContent = "Play Again";
     }
     const score = Math.max(0, hits * 10 - misses * 2);
     const config = getDifficultyConfig();
     if (resultEl) {
-      resultEl.textContent = `時間到（${config.label}），命中 ${hits} 次、失誤 ${misses} 次，得分 ${score} 分。`;
+      resultEl.textContent = `Finished (${config.label}) - Hits ${hits}, Misses ${misses}, Score ${score}`;
     }
     onComplete({
       hits,
@@ -188,7 +361,7 @@
   }
 
   function startGame() {
-    if (running) {
+    if (running || !holes.length) {
       return;
     }
     clearRedirect();
@@ -197,17 +370,20 @@
     misses = 0;
     deadline = Date.now() + 20000;
     if (resultEl) {
-      resultEl.textContent = "遊戲進行中...";
+      resultEl.textContent = "Game running...";
     }
     if (startButton) {
       startButton.disabled = true;
-      startButton.textContent = "進行中";
+      startButton.textContent = "Running";
     }
     holes.forEach((hole) => {
-      hole.classList.remove("is-whacked", "is-missed");
+      stopHoleAnimations(hole);
+      hole.classList.remove("is-active", "is-whacked", "is-missed");
+      setHoleBaseFrame(hole, moleEmergeFrames[0]);
+      setHoleWhackedFrame(hole, moleWhackedFrames[0]);
     });
     const config = getDifficultyConfig();
-    setStatus(`目前難度：${config.label}，請盡快點擊目標。`);
+    setStatus(`Difficulty: ${config.label}. Whack as many moles as you can in 20 seconds.`);
     renderStats();
     renderDifficulty();
     chooseHole();
@@ -229,8 +405,8 @@
     }
     const difficultyText = entry.reaction.difficulty
       ? (DIFFICULTY_CONFIG[entry.reaction.difficulty]?.label || entry.reaction.difficulty)
-      : "未記錄";
-    resultEl.textContent = `上次結果：命中 ${entry.reaction.hits} 次、失誤 ${entry.reaction.misses} 次，得分 ${entry.reaction.score} 分（${difficultyText}）。`;
+      : "Unknown";
+    resultEl.textContent = `Last result - Hits ${entry.reaction.hits}, Misses ${entry.reaction.misses}, Score ${entry.reaction.score} (${difficultyText})`;
   }
 
   function setupGrid() {
@@ -245,22 +421,22 @@
       hole.className = "whack-hole";
       hole.innerHTML = `
         <span class="hole-shadow" aria-hidden="true"></span>
-        <img class="mole-sprite mole-base" src="${MOLE_IMAGE}" alt="" aria-hidden="true" />
-        <img class="mole-sprite mole-whacked" src="${MOLE_WHACKED_IMAGE}" alt="" aria-hidden="true" />
+        <img class="hole-mouth" src="${moleHoleImage}" alt="" aria-hidden="true" />
+        <img class="mole-sprite mole-base" src="${moleEmergeFrames[0] || LEGACY_MOLE_IMAGE}" alt="" aria-hidden="true" />
+        <img class="mole-sprite mole-whacked" src="${moleWhackedFrames[0] || LEGACY_MOLE_WHACKED_IMAGE}" alt="" aria-hidden="true" />
       `;
-      hole.setAttribute("aria-label", `打地鼠洞口 ${i + 1}`);
+      hole.setAttribute("aria-label", `Whack-a-mole hole ${i + 1}`);
       hole.addEventListener("click", () => {
         if (!running) {
           return;
         }
+        triggerHammerSmash();
         if (i === activeHole) {
           hits += 1;
           playSmashSound();
-          hole.classList.add("is-whacked");
-          window.setTimeout(() => {
-            hole.classList.remove("is-whacked");
-          }, 180);
           setActiveHole(-1);
+          hole.classList.add("is-whacked");
+          runWhackedAnimation(hole);
         } else {
           misses += 1;
           hole.classList.add("is-missed");
@@ -275,10 +451,34 @@
     }
   }
 
+  function triggerHammerSmash() {
+    if (!hammerEl || !hammerFrames.length) {
+      return;
+    }
+    const state = getState(hammerEl);
+    if (state.cancelSwing) {
+      state.cancelSwing();
+      state.cancelSwing = null;
+    }
+    clearTimer(hammerResetTimer);
+    hammerEl.classList.add("is-smashing");
+    state.cancelSwing = playFrameSequence(hammerEl, hammerFrames);
+    hammerResetTimer = window.setTimeout(() => {
+      if (state.cancelSwing) {
+        state.cancelSwing();
+        state.cancelSwing = null;
+      }
+      hammerEl.classList.remove("is-smashing");
+      hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
+      hammerResetTimer = null;
+    }, FRAME_MS * hammerFrames.length + 28);
+  }
+
   function setupHammerMotion() {
     if (!arenaEl || !hammerEl) {
       return;
     }
+    hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
     const moveHammer = (event) => {
       const rect = arenaEl.getBoundingClientRect();
       const x = event.clientX - rect.left;
@@ -288,10 +488,18 @@
     };
     arenaEl.addEventListener("pointermove", moveHammer);
     arenaEl.addEventListener("pointerdown", () => {
-      hammerEl.classList.add("is-smashing");
-      window.setTimeout(() => {
-        hammerEl.classList.remove("is-smashing");
-      }, 100);
+      triggerHammerSmash();
+    });
+    arenaEl.addEventListener("pointerleave", () => {
+      const state = getState(hammerEl);
+      if (state.cancelSwing) {
+        state.cancelSwing();
+        state.cancelSwing = null;
+      }
+      clearTimer(hammerResetTimer);
+      hammerResetTimer = null;
+      hammerEl.classList.remove("is-smashing");
+      hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
     });
   }
 
@@ -303,7 +511,7 @@
   }
 
   if (!sessionId) {
-    setStatus("找不到 Session ID，請回測試流程。");
+    setStatus("Missing Session ID. Please return and start a new session.");
   }
 
   if (difficultyPickerEl) {
@@ -316,15 +524,28 @@
     });
   }
 
-  setupGrid();
-  setupHammerMotion();
-  renderProgress();
-  hydrate();
-  renderStats();
-  renderDifficulty();
   if (startButton) {
     startButton.addEventListener("click", () => {
       startGame();
     });
   }
+
+  preloadAnimationAssets()
+    .catch(() => {
+      moleEmergeFrames = [LEGACY_MOLE_IMAGE];
+      moleWhackedFrames = [LEGACY_MOLE_WHACKED_IMAGE];
+      hammerFrames = [LEGACY_HAMMER_IMAGE];
+      moleHoleImage = LEGACY_MOLE_IMAGE;
+      if (hammerEl) {
+        hammerEl.src = LEGACY_HAMMER_IMAGE;
+      }
+    })
+    .finally(() => {
+      setupGrid();
+      setupHammerMotion();
+      renderProgress();
+      hydrate();
+      renderStats();
+      renderDifficulty();
+    });
 })();

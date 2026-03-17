@@ -843,8 +843,7 @@ input {
   position: relative;
   border-radius: 16px;
   padding: 14px;
-  background: #67c23a
-    url("/static/images/games/whack-a-mole/grass background v2.avif");
+  background: #67c23a url("/static/images/games/whack-a-mole/background.png");
   background-size: cover;
   background-position: center bottom;
   border: 1px solid rgba(15, 23, 42, 0.12);
@@ -859,7 +858,7 @@ input {
 
 .whack-hole {
   position: relative;
-  height: 122px;
+  height: 132px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -874,28 +873,34 @@ input {
 }
 
 .hole-shadow {
+  display: none;
+}
+
+.hole-mouth {
   position: absolute;
   left: 50%;
-  bottom: 8px;
-  width: 92px;
-  height: 24px;
+  bottom: 6px;
+  width: min(92px, 74%);
   transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, #0f172a 18%, #4c2d24 72%);
+  user-select: none;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(0 2px 1px rgba(15, 23, 42, 0.42));
 }
 
 .mole-sprite {
   position: absolute;
   left: 50%;
-  bottom: 12px;
-  width: min(74px, 64%);
+  bottom: 18px;
+  width: min(92px, 74%);
   opacity: 0;
-  transform: translate(-50%, 122%);
+  transform: translate(-50%, 132%);
   transition:
-    transform 0.17s ease,
+    transform 0.14s ease,
     opacity 0.12s ease;
   user-select: none;
   pointer-events: none;
+  z-index: 2;
 }
 
 .mole-whacked {
@@ -904,17 +909,17 @@ input {
 
 .whack-hole.is-active .mole-base {
   opacity: 1;
-  transform: translate(-50%, 42%);
+  transform: translate(-50%, 34%);
 }
 
 .whack-hole.is-whacked .mole-base {
   opacity: 0;
-  transform: translate(-50%, 42%);
+  transform: translate(-50%, 34%);
 }
 
 .whack-hole.is-whacked .mole-whacked {
   opacity: 1;
-  transform: translate(-50%, 42%);
+  transform: translate(-50%, 32%);
 }
 
 .whack-hole.is-missed {
