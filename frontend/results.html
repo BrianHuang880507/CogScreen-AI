@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>失智症統計分析平台 - 結果分析</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260317" />
+  </head>
+  <body data-page="results">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div class="brand-text">
+            <div class="brand-title">失智統計分析平台</div>
+            <div class="brand-sub">研究原型</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" data-view="login" href="/">登入</a>
+          <a class="nav-link nav-link-test" data-view="test" href="/test.html">測試</a>
+        </nav>
+        <div class="nav-bottom">
+          <a class="nav-link" data-view="qa" href="/qa.html">Q&A</a>
+        </div>
+        <div class="side-footer">
+          <p>研究/輔助篩檢用途，非診斷。</p>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header result-page-header">
+          <div>
+            <h1>結果分析</h1>
+            <p class="muted">整合量表分數、反應時間與作答正確度，僅供研究與趨勢追蹤。</p>
+          </div>
+          <div class="session-pill">Session ID: <span id="resultSessionId">--</span></div>
+        </header>
+
+        <section class="panel summary-panel">
+          <div class="summary-top">
+            <div id="riskBadge" class="risk-badge risk-none">--</div>
+            <div>
+              <p id="summaryMessage" class="summary-message">載入中...</p>
+              <p id="resultsStatus" class="muted">正在讀取報表資料。</p>
+            </div>
+          </div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span>追蹤建議</span>
+              <strong id="needsFollowup">--</strong>
+            </div>
+            <div class="summary-item">
+              <span>平均反應時間 (VAD)</span>
+              <strong id="avgVad">--</strong>
+            </div>
+            <div class="summary-item">
+              <span>平均反應時間 (Whisper)</span>
+              <strong id="avgWhisper">--</strong>
+            </div>
+            <div class="summary-item">
+              <span>作答正確率</span>
+              <strong id="accuracyRate">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>量表分數</h2>
+          <div id="instrumentCards" class="instrument-card-grid"></div>
+        </section>
+
+        <section id="gameScoresPanel" class="panel">
+          <h2>遊戲表現</h2>
+          <div id="gameScores" class="game-score-grid"></div>
+        </section>
+
+        <section class="panel">
+          <h2>逐題反應與正確度</h2>
+          <div class="table-wrap">
+            <table class="responses-table">
+              <thead>
+                <tr>
+                  <th>題號</th>
+                  <th>量表</th>
+                  <th>作答內容</th>
+                  <th>反應時間 VAD (ms)</th>
+                  <th>反應時間 Whisper (ms)</th>
+                  <th>正確</th>
+                </tr>
+              </thead>
+              <tbody id="responsesBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>研究聲明</h2>
+          <p id="reportDisclaimer">
+            本結果為研究/輔助篩檢用途，不能用於失智症診斷，請由專業人員解讀。
+          </p>
+          <div class="result-actions">
+            <a class="primary" href="/test.html">返回測試列表</a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <button id="logoutBubble" class="logout-bubble hidden">登出</button>
+    <div id="toast" class="toast"></div>
+    <script src="app.js?v=20260317"></script>
+    <script src="results.js?v=20260317"></script>
+  </body>
+</html>

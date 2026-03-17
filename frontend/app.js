@@ -97,7 +97,9 @@ let manualConfirmed = false;
 let recordingDisabled = false;
 
 const VAD_THRESHOLD = 0.02;
-const RESULTS_URL = "https://play-game.azurewebsites.net/#/";
+const GAMES_URL = "/games.html";
+const RESULTS_URL = "/results.html";
+const REPORT_SESSION_KEY = "latestReportSessionId";
 const IMAGE_PLACEHOLDER_IDS = new Set();
 const SESSION_MAP_KEY = "instrumentSessionMap";
 const API_ROOT = "/api";
@@ -197,6 +199,26 @@ function clearStoredSessionId(instrument) {
     delete map[instrument];
     saveSessionMap(map);
   }
+}
+
+function buildSessionPageUrl(path, reportSessionId) {
+  if (!reportSessionId) {
+    return path;
+  }
+  const query = new URLSearchParams({ session_id: reportSessionId });
+  return `${path}?${query.toString()}`;
+}
+
+function storeLatestReportSession(reportSessionId) {
+  if (!reportSessionId) {
+    return;
+  }
+  sessionStorage.setItem(REPORT_SESSION_KEY, reportSessionId);
+}
+
+function redirectToPageWithSession(path, reportSessionId) {
+  const targetUrl = buildSessionPageUrl(path, reportSessionId);
+  window.location.href = targetUrl;
 }
 
 function isLoggedIn() {
@@ -429,7 +451,7 @@ if (logoutBubble) {
   });
 }
 
-if (testCards.length > 0) {
+if (currentPage === "test" && testCards.length > 0) {
   if (requireTestAccess("/")) {
     testCards.forEach((card) => {
       card.addEventListener("click", () => {
@@ -907,7 +929,7 @@ async function submitManualDecision(isConfirmed) {
   await uploadResponse(silentBlob, "manual.wav", isConfirmed);
 }
 
-async function submitReport({ showStatus = false, redirectOnSuccess = false } = {}) {
+async function submitReport({ showStatus = false, redirectTarget = null } = {}) {
   if (!sessionId) {
     return false;
   }
@@ -921,14 +943,18 @@ async function submitReport({ showStatus = false, redirectOnSuccess = false } = 
     }
     return false;
   }
+  const reportedSessionId = submitResult.data?.session_id || sessionId;
+  storeLatestReportSession(reportedSessionId);
   if (viewResultsButton) {
     viewResultsButton.classList.remove("hidden");
   }
   if (showStatus) {
     setStatus(STR.reportOk);
   }
-  if (redirectOnSuccess) {
-    window.location.href = RESULTS_URL;
+  if (redirectTarget === "games") {
+    redirectToPageWithSession(GAMES_URL, reportedSessionId);
+  } else if (redirectTarget === "results") {
+    redirectToPageWithSession(RESULTS_URL, reportedSessionId);
   }
   return true;
 }
@@ -943,12 +969,12 @@ async function maybeSubmitReport() {
   }
   const progress = progressResult.data;
   if (progress.is_complete) {
-    await submitReport({ showStatus: true });
+    await submitReport({ showStatus: true, redirectTarget: "games" });
     clearStoredSessionId(selectedInstrument);
     return;
   }
   if (totalQuestions !== null && currentIndex >= totalQuestions) {
-    await submitReport({ showStatus: true });
+    await submitReport({ showStatus: true, redirectTarget: "games" });
     clearStoredSessionId(selectedInstrument);
   }
 }
@@ -1022,7 +1048,7 @@ if (nextQuestionButton) {
 
 if (viewResultsButton) {
   viewResultsButton.addEventListener("click", async () => {
-    const ok = await submitReport({ showStatus: true, redirectOnSuccess: true });
+    const ok = await submitReport({ showStatus: true, redirectTarget: "games" });
     if (!ok) {
       showToast(STR.reportFail);
     }

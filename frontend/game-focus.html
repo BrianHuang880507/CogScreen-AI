@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>失智症統計分析平台 - 專注遊戲</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260317" />
+  </head>
+  <body data-page="game-focus">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div class="brand-text">
+            <div class="brand-title">失智統計分析平台</div>
+            <div class="brand-sub">研究原型</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-link" data-view="login" href="/">登入</a>
+          <a class="nav-link nav-link-test" data-view="test" href="/test.html">測試</a>
+        </nav>
+        <div class="nav-bottom">
+          <a class="nav-link" data-view="qa" href="/qa.html">Q&A</a>
+        </div>
+        <div class="side-footer">
+          <p>研究/輔助篩檢用途，非診斷。</p>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header game-page-header">
+          <div>
+            <h1>專注：找不同</h1>
+            <p class="muted">在右側圖中找出 3 個差異，完成後自動計分。</p>
+          </div>
+          <div class="session-pill">Session ID: <span id="gameSessionId">--</span></div>
+        </header>
+
+        <section class="panel game-summary-panel">
+          <div class="game-summary-meta">
+            <p class="game-progress">完成進度：<span id="gamesDone">0/3</span></p>
+            <p id="gameStatus" class="muted">按「開始找不同」後作答。</p>
+          </div>
+          <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
+        </section>
+
+        <section class="panel game-panel">
+          <div class="game-panel-head">
+            <h2>找出 3 個不同處</h2>
+            <button id="focusStartButton" class="primary" type="button">開始找不同</button>
+          </div>
+          <div class="spot-stage">
+            <div class="spot-scene spot-left">
+              <div class="spot-sun"></div>
+              <div class="spot-house">
+                <span class="spot-roof"></span>
+                <span class="spot-window spot-window-left"></span>
+                <span class="spot-window spot-window-right"></span>
+              </div>
+              <div class="spot-tree">
+                <span class="spot-apple apple-a"></span>
+                <span class="spot-apple apple-b"></span>
+                <span class="spot-apple apple-c"></span>
+              </div>
+            </div>
+            <div class="spot-scene spot-right" id="focusScene">
+              <div class="spot-sun sun-diff"></div>
+              <div class="spot-house">
+                <span class="spot-roof"></span>
+                <span class="spot-window spot-window-left"></span>
+              </div>
+              <div class="spot-tree">
+                <span class="spot-apple apple-a"></span>
+                <span class="spot-apple apple-c"></span>
+              </div>
+              <button class="diff-hit diff-sun" data-diff="sun" aria-label="差異一：太陽"></button>
+              <button class="diff-hit diff-window" data-diff="window" aria-label="差異二：窗戶"></button>
+              <button class="diff-hit diff-apple" data-diff="apple" aria-label="差異三：蘋果"></button>
+            </div>
+          </div>
+          <p id="focusProgress" class="game-result">已找到 0 / 3。</p>
+          <p id="focusResult" class="game-result">尚未開始。</p>
+        </section>
+      </main>
+    </div>
+
+    <button id="logoutBubble" class="logout-bubble hidden">登出</button>
+    <div id="toast" class="toast"></div>
+    <script src="app.js?v=20260317"></script>
+    <script src="game-utils.js?v=20260317"></script>
+    <script src="game-focus.js?v=20260317"></script>
+  </body>
+</html>

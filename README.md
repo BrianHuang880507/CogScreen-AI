@@ -87,6 +87,11 @@ uvicorn backend.app.main:app --reload
 - `/`：登入與註冊
 - `/test.html`：選擇量表
 - `/exam.html`：作答頁（播放題目、錄音、上傳）
+- `/games.html`：遊戲選單（卡片式）
+- `/game-logic.html`：邏輯遊戲（圖形分類）
+- `/game-reaction.html`：反應遊戲（打地鼠）
+- `/game-focus.html`：專注遊戲（找不同）
+- `/results.html`：結果分析頁
 - `/qa.html`：量表 Q&A 說明
 
 ## API 端點（MVP）

@@ -1,0 +1,24 @@
+<svg width="640" height="320" viewBox="0 0 640 320" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="320" fill="url(#bg)"/>
+  <rect x="36" y="28" width="180" height="264" rx="18" fill="#ffffff" stroke="#94a3b8" stroke-width="3"/>
+  <rect x="230" y="28" width="180" height="264" rx="18" fill="#ffffff" stroke="#94a3b8" stroke-width="3"/>
+  <rect x="424" y="28" width="180" height="264" rx="18" fill="#ffffff" stroke="#94a3b8" stroke-width="3"/>
+  <text x="126" y="62" font-size="24" text-anchor="middle" fill="#1e293b" font-family="Arial">Circle</text>
+  <text x="320" y="62" font-size="24" text-anchor="middle" fill="#1e293b" font-family="Arial">Triangle</text>
+  <text x="514" y="62" font-size="24" text-anchor="middle" fill="#1e293b" font-family="Arial">Square</text>
+  <circle cx="126" cy="140" r="30" fill="#38bdf8"/>
+  <circle cx="126" cy="220" r="30" fill="#0ea5e9"/>
+  <polygon points="320,106 288,162 352,162" fill="#22c55e"/>
+  <polygon points="320,186 288,242 352,242" fill="#16a34a"/>
+  <rect x="484" y="110" width="62" height="62" rx="12" fill="#f97316"/>
+  <rect x="484" y="194" width="62" height="62" rx="12" fill="#ea580c"/>
+  <path d="M70 84 L106 84" stroke="#64748b" stroke-width="6" stroke-linecap="round"/>
+  <path d="M264 84 L300 84" stroke="#64748b" stroke-width="6" stroke-linecap="round"/>
+  <path d="M458 84 L494 84" stroke="#64748b" stroke-width="6" stroke-linecap="round"/>
+</svg>
