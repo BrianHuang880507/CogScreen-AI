@@ -106,10 +106,7 @@ const SESSION_MAP_KEY = "instrumentSessionMap";
 const API_ROOT = "/api";
 
 const instrumentLabels = {
-  mmse: "MMSE",
   spmsq: "SPMSQ",
-  ad8: "AD8",
-  moca: "MoCA",
 };
 
 function showToast(message) {
@@ -459,10 +456,6 @@ if (currentPage === "test" && testCards.length > 0) {
     testCards.forEach((card) => {
       card.addEventListener("click", () => {
         const instrument = card.dataset.instrument;
-        if (instrument === "moca") {
-          showToast(STR.mocaBuilding);
-          return;
-        }
         sessionStorage.setItem("instrument", instrument);
         window.location.href = "/exam.html";
       });
@@ -999,14 +992,8 @@ if (currentPage === "exam") {
   if (!requireTestAccess("/")) {
     selectedInstrument = null;
   } else {
-    selectedInstrument = sessionStorage.getItem("instrument");
-  }
-  if (!selectedInstrument) {
-    showToast(STR.missingInstrument);
-    setTimeout(() => {
-      window.location.href = "/test.html";
-    }, 800);
-  } else {
+    selectedInstrument = "spmsq";
+    sessionStorage.setItem("instrument", selectedInstrument);
     startExam(selectedInstrument);
   }
 }

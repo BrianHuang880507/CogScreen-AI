@@ -15,6 +15,7 @@
   const statusEl = document.getElementById("gameStatus");
   const backToGames = document.getElementById("backToGames");
   const startButton = document.getElementById("focusStartButton");
+  const startOverlayEl = document.getElementById("focusStartOverlay");
   const progressEl = document.getElementById("focusProgress");
   const resultEl = document.getElementById("focusResult");
   const imageEl = document.getElementById("focusImage");
@@ -102,6 +103,13 @@
       window.clearTimeout(redirectTimer);
       redirectTimer = null;
     }
+  }
+
+  function setStartOverlayVisible(visible) {
+    if (!startOverlayEl) {
+      return;
+    }
+    startOverlayEl.classList.toggle("hidden", !visible);
   }
 
   function onComplete(payload) {
@@ -208,6 +216,7 @@
     }
     clearRedirect();
     active = false;
+    setStartOverlayVisible(true);
     found = new Set();
     currentDifficulty = difficulty;
     currentLevel = level;
@@ -218,7 +227,7 @@
     renderFound();
 
     if (resultEl) {
-      resultEl.textContent = `已選擇「${difficultyLabel[difficulty]}」難度，按「開始找不同」後作答。`;
+      resultEl.textContent = `已選擇「${difficultyLabel[difficulty]}」難度，按下藍色三角形開始。`;
     }
     setStatus(`已載入 ${difficultyLabel[difficulty]} 題目。`);
 
@@ -240,6 +249,7 @@
     }
     clearRedirect();
     active = true;
+    setStartOverlayVisible(false);
     startAt = performance.now();
     found = new Set();
     clearMarkers();
@@ -252,6 +262,7 @@
 
   function finish() {
     active = false;
+    setStartOverlayVisible(true);
     const elapsed = (performance.now() - startAt) / 1000;
     const total = getTotalDiffCount();
     const score = Math.max(0, Math.round(140 - elapsed * 8));
@@ -327,7 +338,7 @@
 
     if (!active) {
       showFlash(displayX, displayY, "invalid");
-      setStatus("請先按「開始找不同」。");
+      setStatus("請先按下藍色三角形開始。");
       return;
     }
 
@@ -418,6 +429,7 @@
   const defaultDifficulty = pickDefaultDifficulty();
   if (defaultDifficulty) {
     selectDifficulty(defaultDifficulty);
+    setStatus("按下藍色三角形開始。");
   } else {
     currentLevel = null;
     setDifficultyButtonState();

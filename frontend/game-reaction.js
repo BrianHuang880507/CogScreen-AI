@@ -13,6 +13,7 @@
   const statusEl = document.getElementById("gameStatus");
   const backToGames = document.getElementById("backToGames");
   const startButton = document.getElementById("reactionStartButton");
+  const startOverlayEl = document.getElementById("reactionStartOverlay");
   const timerEl = document.getElementById("reactionTimer");
   const hitsEl = document.getElementById("reactionHits");
   const missesEl = document.getElementById("reactionMisses");
@@ -241,8 +242,20 @@
       button.disabled = running;
     });
     if (speedHintEl) {
-      speedHintEl.textContent = `Speed: ${config.speedText}`;
+      const speedText = config.speedText === "slow"
+        ? "慢"
+        : config.speedText === "normal"
+          ? "中"
+          : "快";
+      speedHintEl.textContent = `速度：${speedText}`;
     }
+  }
+
+  function setStartOverlayVisible(visible) {
+    if (!startOverlayEl) {
+      return;
+    }
+    startOverlayEl.classList.toggle("hidden", !visible);
   }
 
   function setDifficulty(nextDifficulty) {
@@ -262,13 +275,13 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("All mini-games completed. Redirecting to report...");
+      setStatus("三個遊戲已完成，將前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
       }, 1500);
       return;
     }
-    setStatus("Reaction game completed. Returning to game hub...");
+    setStatus("本遊戲已完成，將返回遊戲選單。");
     redirectTimer = window.setTimeout(() => {
       window.location.href = flow.buildGameHubUrl(sessionId);
     }, 1500);
@@ -339,14 +352,12 @@
     }
     deadline = Date.now();
     renderStats();
-    if (startButton) {
-      startButton.disabled = false;
-      startButton.textContent = "Play Again";
-    }
+    setStartOverlayVisible(true);
     const score = Math.max(0, hits * 10 - misses * 2);
     const config = getDifficultyConfig();
     if (resultEl) {
-      resultEl.textContent = `Finished (${config.label}) - Hits ${hits}, Misses ${misses}, Score ${score}`;
+      const label = config.label === "Easy" ? "簡單" : config.label === "Medium" ? "中等" : "困難";
+      resultEl.textContent = `完成 ${label} 難度，命中 ${hits}、失誤 ${misses}、得分 ${score}。`;
     }
     onComplete({
       hits,
@@ -370,12 +381,9 @@
     misses = 0;
     deadline = Date.now() + 20000;
     if (resultEl) {
-      resultEl.textContent = "Game running...";
+      resultEl.textContent = "遊戲進行中...";
     }
-    if (startButton) {
-      startButton.disabled = true;
-      startButton.textContent = "Running";
-    }
+    setStartOverlayVisible(false);
     holes.forEach((hole) => {
       stopHoleAnimations(hole);
       hole.classList.remove("is-active", "is-whacked", "is-missed");
@@ -383,7 +391,8 @@
       setHoleWhackedFrame(hole, moleWhackedFrames[0]);
     });
     const config = getDifficultyConfig();
-    setStatus(`Difficulty: ${config.label}. Whack as many moles as you can in 20 seconds.`);
+    const label = config.label === "Easy" ? "簡單" : config.label === "Medium" ? "中等" : "困難";
+    setStatus(`${label}難度進行中，請在 20 秒內盡量命中。`);
     renderStats();
     renderDifficulty();
     chooseHole();
@@ -404,9 +413,13 @@
       return;
     }
     const difficultyText = entry.reaction.difficulty
-      ? (DIFFICULTY_CONFIG[entry.reaction.difficulty]?.label || entry.reaction.difficulty)
-      : "Unknown";
-    resultEl.textContent = `Last result - Hits ${entry.reaction.hits}, Misses ${entry.reaction.misses}, Score ${entry.reaction.score} (${difficultyText})`;
+      ? ({
+        easy: "簡單",
+        medium: "中等",
+        hard: "困難",
+      }[entry.reaction.difficulty] || entry.reaction.difficulty)
+      : "--";
+    resultEl.textContent = `上次結果（${difficultyText}）：命中 ${entry.reaction.hits}、失誤 ${entry.reaction.misses}、得分 ${entry.reaction.score}。`;
   }
 
   function setupGrid() {
@@ -511,7 +524,7 @@
   }
 
   if (!sessionId) {
-    setStatus("Missing Session ID. Please return and start a new session.");
+    setStatus("找不到 Session ID，請回測試流程。");
   }
 
   if (difficultyPickerEl) {
@@ -547,5 +560,12 @@
       hydrate();
       renderStats();
       renderDifficulty();
+      setStartOverlayVisible(true);
+      if (resultEl && !resultEl.textContent) {
+        resultEl.textContent = "按下藍色三角形開始。";
+      }
+      if (statusEl && !statusEl.textContent) {
+        setStatus("按下藍色三角形開始。");
+      }
     });
 })();

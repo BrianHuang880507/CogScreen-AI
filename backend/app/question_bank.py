@@ -52,11 +52,7 @@ def load_question_file(filename: str, instrument: str) -> list[dict[str, Any]]:
 
 
 def load_all_questions() -> list[dict[str, Any]]:
-    return (
-        load_question_file("MMSE_questions.json", "mmse")
-        + load_question_file("AD8_questions.json", "ad8")
-        + load_question_file("SPMSQ_questions.json", "spmsq")
-    )
+    return load_question_file("SPMSQ_questions.json", "spmsq")
 
 
 def filter_questions(questions: list[dict[str, Any]], instrument: str | None) -> list[dict[str, Any]]:

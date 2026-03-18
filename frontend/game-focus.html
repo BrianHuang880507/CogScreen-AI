@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260318" />
+    <link rel="stylesheet" href="styles.css?v=20260321" />
   </head>
   <body data-page="game-focus">
     <div class="app">
@@ -41,28 +41,35 @@
         </header>
 
         <section class="panel game-summary-panel">
-          <div class="game-summary-meta">
-            <p class="game-progress">完成進度：<span id="gamesDone">0/3</span></p>
-            <p id="gameStatus" class="muted">按「開始找不同」後作答。</p>
+          <p id="gameStatus" class="muted game-status-line">按下藍色三角形開始。</p>
+          <div class="difficulty-picker focus-difficulty-picker" id="focusDifficultyPicker" role="group" aria-label="選擇難度">
+            <button class="difficulty-button" type="button" data-focus-difficulty="easy">簡單</button>
+            <button class="difficulty-button" type="button" data-focus-difficulty="medium">中等</button>
+            <button class="difficulty-button" type="button" data-focus-difficulty="hard">困難</button>
           </div>
-          <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
+          <div class="game-summary-meta game-summary-meta-right">
+            <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
+            <p class="game-progress">完成進度：<span id="gamesDone">0/3</span></p>
+          </div>
         </section>
 
         <section class="panel game-panel">
           <div class="game-panel-head">
             <h2>在右側圖中找出不同處</h2>
-            <div class="difficulty-picker focus-difficulty-picker" id="focusDifficultyPicker" role="group" aria-label="選擇難度">
-              <button class="difficulty-button" type="button" data-focus-difficulty="easy">簡單</button>
-              <button class="difficulty-button" type="button" data-focus-difficulty="medium">中等</button>
-              <button class="difficulty-button" type="button" data-focus-difficulty="hard">困難</button>
-            </div>
-            <button id="focusStartButton" class="primary" type="button">開始找不同</button>
           </div>
           <div class="focus-board-wrap">
             <div class="focus-board" id="focusBoard">
               <img id="focusImage" class="focus-image" src="/static/images/games/spot-the-diff/img_0001.jpg" alt="找不同題目圖" />
               <div id="focusMarkers" class="focus-markers" aria-hidden="true"></div>
               <div id="focusClickFlash" class="focus-click-flash" aria-hidden="true"></div>
+              <div id="focusStartOverlay" class="game-start-overlay is-inset">
+                <button
+                  id="focusStartButton"
+                  class="game-start-triangle"
+                  type="button"
+                  aria-label="開始遊戲"
+                ></button>
+              </div>
             </div>
             <p class="muted focus-board-hint">提示：只會計算右半邊圖片的點擊。</p>
           </div>
@@ -74,9 +81,10 @@
 
     <button id="logoutBubble" class="logout-bubble hidden">登出</button>
     <div id="toast" class="toast"></div>
-    <script src="app.js?v=20260317"></script>
+    <script src="app.js?v=20260319"></script>
     <script src="game-utils.js?v=20260317"></script>
     <script src="focus-levels.js?v=20260318"></script>
-    <script src="game-focus.js?v=20260318"></script>
+    <script src="game-focus.js?v=20260319"></script>
   </body>
 </html>
+

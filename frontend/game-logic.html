@@ -3,11 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>失智症統計分析平台 - 邏輯遊戲</title>
+    <title>失智症統計分析平台 - 物件分類遊戲</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260317" />
+    <link rel="stylesheet" href="styles.css?v=20260321" />
   </head>
   <body data-page="game-logic">
     <div class="app">
@@ -34,37 +34,62 @@
       <main class="content">
         <header class="page-header game-page-header">
           <div>
-            <h1>邏輯：圖形分類</h1>
-            <p class="muted">拖曳圖形到正確分類區，完成後自動計分。</p>
+            <h1>邏輯：物件分類</h1>
+            <p class="muted">拖曳物件圖片到正確分類區，或使用點選模式完成分類。</p>
           </div>
           <div class="session-pill">Session ID: <span id="gameSessionId">--</span></div>
         </header>
 
         <section class="panel game-summary-panel">
-          <div class="game-summary-meta">
+          <p id="gameStatus" class="muted game-status-line">按下藍色三角形開始。</p>
+          <div
+            id="classificationDifficultyPicker"
+            class="difficulty-picker classification-difficulty-picker"
+            aria-label="難度切換"
+          ></div>
+          <div class="game-summary-meta game-summary-meta-right">
+            <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
             <p class="game-progress">完成進度：<span id="gamesDone">0/3</span></p>
-            <p id="gameStatus" class="muted">請完成本遊戲。</p>
           </div>
-          <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
         </section>
 
-        <section class="panel game-panel">
-          <div class="game-panel-head">
-            <h2>圖形拖曳區</h2>
+        <section class="panel game-panel classification-game-panel">
+          <div class="game-panel-head classification-game-head">
+            <div>
+              <h2 id="classificationLevelTitle">物件分類</h2>
+              <p id="classificationLevelDescription" class="muted">
+                請將上方物件拖曳到下方正確分類區。
+              </p>
+            </div>
             <button id="logicResetButton" class="ghost" type="button">重新開始</button>
           </div>
-          <div id="logicTokenBank" class="shape-token-bank"></div>
-          <div class="shape-bin-grid">
-            <div class="shape-bin" data-accept="circle">
-              <h3>圓形</h3>
+
+          <p id="logicProgressMeta" class="game-progress">已完成 0/0，得分 0 分。</p>
+          <p class="muted classification-help">
+            操作方式：拖曳物件到分類區，或先點選物件再點選分類區。
+          </p>
+
+          <div class="game-start-stage">
+            <section class="classification-pool-panel" aria-labelledby="classificationPoolTitle">
+              <h3 id="classificationPoolTitle">待分類物件</h3>
+              <div id="classificationItemPool" class="classification-item-pool"></div>
+            </section>
+
+            <div class="classification-zones-panel">
+              <div id="classificationZoneGrid" class="classification-zone-grid"></div>
             </div>
-            <div class="shape-bin" data-accept="triangle">
-              <h3>三角形</h3>
-            </div>
-            <div class="shape-bin" data-accept="square">
-              <h3>方形</h3>
+
+            <div id="logicStartOverlay" class="game-start-overlay">
+              <button
+                id="logicStartButton"
+                class="game-start-triangle"
+                type="button"
+                aria-label="開始遊戲"
+              ></button>
             </div>
           </div>
+
+          <p id="logicFeedback" class="game-feedback" aria-live="polite"></p>
           <p id="logicResult" class="game-result">尚未完成。</p>
         </section>
       </main>
@@ -72,8 +97,10 @@
 
     <button id="logoutBubble" class="logout-bubble hidden">登出</button>
     <div id="toast" class="toast"></div>
-    <script src="app.js?v=20260317"></script>
+    <script src="app.js?v=20260319"></script>
     <script src="game-utils.js?v=20260317"></script>
-    <script src="game-logic.js?v=20260317"></script>
+    <script src="classification-levels.js?v=20260318"></script>
+    <script src="game-logic.js?v=20260319"></script>
   </body>
 </html>
+

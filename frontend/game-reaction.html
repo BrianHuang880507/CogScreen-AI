@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260317" />
+    <link rel="stylesheet" href="styles.css?v=20260321" />
   </head>
   <body data-page="game-reaction">
     <div class="app">
@@ -41,23 +41,22 @@
         </header>
 
         <section class="panel game-summary-panel">
-          <div class="game-summary-meta">
-            <p class="game-progress">完成進度：<span id="gamesDone">0/3</span></p>
-            <p id="gameStatus" class="muted">按「開始 20 秒」後進行遊戲。</p>
-          </div>
-          <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
-        </section>
-
-        <section class="panel game-panel">
-          <div class="game-panel-head">
-            <h2>點擊目標</h2>
-            <button id="reactionStartButton" class="primary" type="button">開始 20 秒</button>
-          </div>
+          <p id="gameStatus" class="muted game-status-line">按下藍色三角形開始。</p>
           <div id="reactionDifficultyPicker" class="difficulty-picker" role="group" aria-label="難度">
             <button class="difficulty-button is-active" data-difficulty="easy" type="button">簡單</button>
             <button class="difficulty-button" data-difficulty="medium" type="button">中等</button>
             <button class="difficulty-button" data-difficulty="hard" type="button">困難</button>
             <span id="reactionSpeedHint" class="difficulty-hint">速度：慢</span>
+          </div>
+          <div class="game-summary-meta game-summary-meta-right">
+            <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
+            <p class="game-progress">完成進度：<span id="gamesDone">0/3</span></p>
+          </div>
+        </section>
+
+        <section class="panel game-panel">
+          <div class="game-panel-head">
+            <h2>點擊目標</h2>
           </div>
           <div class="whack-stats">
             <div>剩餘：<span id="reactionTimer">20.0</span> 秒</div>
@@ -67,6 +66,14 @@
           <div id="reactionArena" class="whack-arena">
             <div id="reactionGrid" class="whack-grid"></div>
             <img id="reactionHammer" class="whack-hammer" src="/static/images/games/whack-a-mole/hammer_0001.png" alt="" aria-hidden="true" />
+            <div id="reactionStartOverlay" class="game-start-overlay is-inset">
+              <button
+                id="reactionStartButton"
+                class="game-start-triangle"
+                type="button"
+                aria-label="開始遊戲"
+              ></button>
+            </div>
           </div>
           <audio id="reactionSmashAudio" preload="auto" src="/static/audio/games/smash.mp3"></audio>
           <p id="reactionResult" class="game-result">尚未開始。</p>
@@ -76,8 +83,9 @@
 
     <button id="logoutBubble" class="logout-bubble hidden">登出</button>
     <div id="toast" class="toast"></div>
-    <script src="app.js?v=20260317"></script>
+    <script src="app.js?v=20260319"></script>
     <script src="game-utils.js?v=20260317"></script>
-    <script src="game-reaction.js?v=20260317"></script>
+    <script src="game-reaction.js?v=20260319"></script>
   </body>
 </html>
+
