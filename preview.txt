@@ -1,0 +1,5 @@
+sessionStorage.setItem("isLoggedIn", "true");
+sessionStorage.setItem("latestReportSessionId", "demo-preview_v1");
+
+http://localhost:8000/games.html
+http://localhost:8000/results.html

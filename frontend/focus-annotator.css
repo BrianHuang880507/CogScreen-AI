@@ -1,0 +1,275 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+  background: #f5f7fb;
+  color: #0f172a;
+}
+
+.annotator-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.annotator-header h1 {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 3vw, 34px);
+}
+
+.annotator-header p {
+  margin: 0;
+  color: #475569;
+  font-size: 17px;
+}
+
+.annotator-panel {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.annotator-panel h2 {
+  margin: 0 0 12px;
+}
+
+.annotator-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.control-field {
+  display: grid;
+  gap: 6px;
+}
+
+.control-field span {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.control-field input,
+.control-field select {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 16px;
+}
+
+#imagePathInput {
+  width: min(700px, 100vw - 72px);
+}
+
+.mode-field select {
+  min-width: 120px;
+}
+
+.radius-field input {
+  width: 120px;
+}
+
+.annotator-controls button,
+.export-actions button {
+  min-height: 44px;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.annotator-controls button:hover,
+.export-actions button:hover {
+  background: #1e40af;
+}
+
+.annotator-controls .danger {
+  background: #dc2626;
+}
+
+.annotator-controls .danger:hover {
+  background: #b91c1c;
+}
+
+.annotator-meta {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  font-size: 16px;
+}
+
+.annotator-board {
+  position: relative;
+  margin-top: 12px;
+  width: min(100%, 1120px);
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #111827;
+}
+
+.annotator-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: crosshair;
+}
+
+.annotator-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.annotator-split-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  border-left: 2px dashed rgba(255, 255, 255, 0.75);
+}
+
+.annot-region {
+  position: absolute;
+  border: 3px solid #f43f5e;
+  background: rgba(244, 63, 94, 0.13);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
+.annot-region.circle {
+  border-radius: 50%;
+}
+
+.annot-region.rect {
+  border-radius: 6px;
+}
+
+.annot-region-label {
+  position: absolute;
+  left: 2px;
+  top: -22px;
+  background: rgba(15, 23, 42, 0.7);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.annot-pending-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #f8fafc;
+  background: #f59e0b;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
+}
+
+.board-hint {
+  margin: 10px 0 0;
+  color: #334155;
+  font-size: 16px;
+}
+
+.region-list {
+  display: grid;
+  gap: 8px;
+}
+
+.muted-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+}
+
+.region-item {
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.region-item code {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 14px;
+}
+
+.region-item button {
+  min-height: 38px;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #334155;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.region-item button:hover {
+  background: #1f2937;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#exportOutput {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 220px;
+}
+
+@media (max-width: 760px) {
+  .annotator-page {
+    padding: 14px;
+  }
+
+  #imagePathInput {
+    width: 100%;
+  }
+
+  .annotator-controls {
+    align-items: stretch;
+  }
+
+  .annotator-controls button,
+  .export-actions button {
+    width: 100%;
+  }
+}

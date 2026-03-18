@@ -24,8 +24,12 @@ def write_json(path: Path, payload: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch report and forward JSON payload.")
-    parser.add_argument("--session-id", required=True, help="Session ID from the web test.")
+    parser = argparse.ArgumentParser(
+        description="Fetch report and forward JSON payload."
+    )
+    parser.add_argument(
+        "--session-id", required=True, help="Session ID from the web test."
+    )
     parser.add_argument(
         "--base-url",
         default=os.getenv("COGSCREEN_BASE_URL", "http://localhost:8000"),
@@ -33,7 +37,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--api-url",
-        default=os.getenv("COGSCREEN_API_URL", "https://play-game-api.azurewebsites.net/v1.0/telemetry/info"),
+        default=os.getenv(
+            "COGSCREEN_API_URL",
+            "https://play-game-api.azurewebsites.net/v1.0/telemetry/info",
+        ),
         help="Destination API URL for posting JSON.",
     )
     parser.add_argument(
