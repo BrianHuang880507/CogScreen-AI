@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/jpeg" href="/static/images/ui/itri_CEL_A.jpg" />
     <title>失智症統計分析平台 - 結果分析</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -10,13 +11,13 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260321" />
+    <link rel="stylesheet" href="styles.css?v=20260323" />
   </head>
   <body data-page="results">
     <div class="app">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">C</div>
+          <div class="brand-mark"></div>
           <div class="brand-text">
             <div class="brand-title">失智統計分析平台</div>
             <div class="brand-sub">研究原型</div>
@@ -81,24 +82,16 @@
           <h2>日期分析雷達圖</h2>
           <p class="muted">收合時顯示日期與初步判斷，展開後顯示雷達圖。</p>
           <div id="dailyRadarList" class="date-radar-list"></div>
+          <p id="csvExportHint" class="muted export-hint"></p>
         </section>
 
-        <section class="panel">
-          <h2>研究聲明</h2>
-          <p id="reportDisclaimer">
-            本結果為研究/輔助篩檢用途，不能用於失智症診斷，請由專業人員解讀。
-          </p>
-          <div class="result-actions">
-            <a class="primary" href="/test.html">返回測試列表</a>
-          </div>
-        </section>
       </main>
     </div>
 
     <button id="logoutBubble" class="logout-bubble hidden">登出</button>
     <div id="toast" class="toast"></div>
-    <script src="app.js?v=20260319"></script>
-    <script src="results.js?v=20260321"></script>
+    <script src="app.js?v=20260323"></script>
+    <script src="results.js?v=20260325"></script>
   </body>
 </html>
 

@@ -42,6 +42,8 @@
   let redirectTimer = null;
   let naturalWidth = 0;
   let naturalHeight = 0;
+  let clickLog = [];
+  let startedAtIso = null;
 
   function setStatus(text) {
     if (!statusEl) {
@@ -140,6 +142,16 @@
     markersEl.innerHTML = "";
   }
 
+  function recordClick(type, displayX, displayY, extra = {}) {
+    clickLog.push({
+      type,
+      display_x: Number(displayX.toFixed(1)),
+      display_y: Number(displayY.toFixed(1)),
+      at: new Date().toISOString(),
+      ...extra,
+    });
+  }
+
   function showFlash(displayX, displayY, type) {
     if (!clickFlashEl || !boardEl) {
       return;
@@ -218,6 +230,8 @@
     active = false;
     setStartOverlayVisible(true);
     found = new Set();
+    clickLog = [];
+    startedAtIso = null;
     currentDifficulty = difficulty;
     currentLevel = level;
     naturalWidth = 0;
@@ -251,6 +265,8 @@
     active = true;
     setStartOverlayVisible(false);
     startAt = performance.now();
+    startedAtIso = new Date().toISOString();
+    clickLog = [];
     found = new Set();
     clearMarkers();
     renderFound();
@@ -266,6 +282,7 @@
     const elapsed = (performance.now() - startAt) / 1000;
     const total = getTotalDiffCount();
     const score = Math.max(0, Math.round(140 - elapsed * 8));
+    const endedAt = new Date();
     if (resultEl) {
       resultEl.textContent = `完成 ${difficultyLabel[currentDifficulty]} 難度，用時 ${elapsed.toFixed(1)} 秒，得分 ${score} 分。`;
     }
@@ -276,7 +293,13 @@
       total,
       elapsed_sec: Number(elapsed.toFixed(1)),
       score,
-      completed_at: new Date().toISOString(),
+      completed_at: endedAt.toISOString(),
+      details: {
+        started_at: startedAtIso,
+        ended_at: endedAt.toISOString(),
+        total_clicks: clickLog.length,
+        clicks: [...clickLog],
+      },
     });
   }
 
@@ -337,6 +360,7 @@
     }
 
     if (!active) {
+      recordClick("invalid_not_started", displayX, displayY);
       showFlash(displayX, displayY, "invalid");
       setStatus("請先按下藍色三角形開始。");
       return;
@@ -345,6 +369,10 @@
     const x = (displayX / rect.width) * naturalWidth;
     const y = (displayY / rect.height) * naturalHeight;
     if (x < naturalWidth / 2) {
+      recordClick("invalid_left", displayX, displayY, {
+        image_x: Number(x.toFixed(1)),
+        image_y: Number(y.toFixed(1)),
+      });
       showFlash(displayX, displayY, "invalid");
       setStatus("請點擊右半邊圖片。");
       return;
@@ -352,10 +380,19 @@
 
     const hit = detectHit(x, y);
     if (!hit) {
+      recordClick("miss", displayX, displayY, {
+        image_x: Number(x.toFixed(1)),
+        image_y: Number(y.toFixed(1)),
+      });
       showFlash(displayX, displayY, "miss");
       return;
     }
 
+    recordClick("hit", displayX, displayY, {
+      image_x: Number(x.toFixed(1)),
+      image_y: Number(y.toFixed(1)),
+      diff_id: hit.id,
+    });
     found.add(hit.id);
     renderFound();
     renderMarkers();

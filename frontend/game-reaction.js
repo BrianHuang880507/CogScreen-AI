@@ -63,6 +63,8 @@
   let redirectTimer = null;
   let selectedDifficulty = "easy";
   let hammerResetTimer = null;
+  let eventLog = [];
+  let startedAtIso = null;
   const animationState = new WeakMap();
 
   function getState(node) {
@@ -320,6 +322,12 @@
       next = (next + 1) % holes.length;
     }
     setActiveHole(next);
+    eventLog.push({
+      type: "spawn",
+      hole_index: next,
+      at: new Date().toISOString(),
+      remaining_ms: Math.max(0, deadline - Date.now()),
+    });
   }
 
   function stopGame() {
@@ -354,6 +362,7 @@
     renderStats();
     setStartOverlayVisible(true);
     const score = Math.max(0, hits * 10 - misses * 2);
+    const endedAt = new Date();
     const config = getDifficultyConfig();
     if (resultEl) {
       const label = config.label === "Easy" ? "簡單" : config.label === "Medium" ? "中等" : "困難";
@@ -366,7 +375,13 @@
       difficulty: selectedDifficulty,
       speed_ms: config.intervalMs,
       duration_sec: 20,
-      completed_at: new Date().toISOString(),
+      completed_at: endedAt.toISOString(),
+      details: {
+        started_at: startedAtIso,
+        ended_at: endedAt.toISOString(),
+        total_events: eventLog.length,
+        events: [...eventLog],
+      },
     });
     renderDifficulty();
   }
@@ -378,6 +393,8 @@
     clearRedirect();
     running = true;
     hits = 0;
+    eventLog = [];
+    startedAtIso = new Date().toISOString();
     misses = 0;
     deadline = Date.now() + 20000;
     if (resultEl) {
@@ -444,14 +461,29 @@
           return;
         }
         triggerHammerSmash();
+        const nowIso = new Date().toISOString();
+        const remainingMs = Math.max(0, deadline - Date.now());
         if (i === activeHole) {
           hits += 1;
+          eventLog.push({
+            type: "hit",
+            hole_index: i,
+            at: nowIso,
+            remaining_ms: remainingMs,
+          });
           playSmashSound();
           setActiveHole(-1);
           hole.classList.add("is-whacked");
           runWhackedAnimation(hole);
         } else {
           misses += 1;
+          eventLog.push({
+            type: "miss",
+            hole_index: i,
+            target_hole_index: activeHole,
+            at: nowIso,
+            remaining_ms: remainingMs,
+          });
           hole.classList.add("is-missed");
           window.setTimeout(() => {
             hole.classList.remove("is-missed");

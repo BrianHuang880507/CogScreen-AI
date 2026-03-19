@@ -1,3 +1,31 @@
+
+.annotator-banner {
+  height: 64px;
+  display: grid;
+  grid-template-columns: 52px 1fr 52px;
+  align-items: center;
+  padding: 0 14px;
+  background: linear-gradient(180deg, #182246 0%, #0e1532 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.annotator-banner-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.annotator-banner-title {
+  margin: 0;
+  text-align: center;
+  color: #f8fafc;
+  font-size: clamp(20px, 2.1vw, 28px);
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
 :root {
   color-scheme: light;
 }

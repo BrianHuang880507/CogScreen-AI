@@ -45,6 +45,8 @@
   let itemMap = new Map();
   let itemNodes = new Map();
   let zoneBodyMap = new Map();
+  let attemptLog = [];
+  let roundStartedAt = 0;
 
   function setStatus(text) {
     if (statusEl) {
@@ -263,13 +265,36 @@
       logicResultEl.textContent = `完成「${currentLevel.title}」，正確 ${total}/${total}，得分 ${score} 分。`;
     }
     setFeedback("分類全部正確，已完成本關。", "success");
+    const endedAt = new Date();
+    const durationSec = roundStartedAt
+      ? Number(((endedAt.getTime() - roundStartedAt) / 1000).toFixed(1))
+      : null;
     onComplete({
       difficulty: currentDifficulty,
       level_title: currentLevel.title,
       correct: total,
       total,
       score,
-      completed_at: new Date().toISOString(),
+      completed_at: endedAt.toISOString(),
+      details: {
+        presented_categories: Array.isArray(currentLevel.categories)
+          ? [...currentLevel.categories]
+          : [],
+        presented_items: Array.isArray(currentLevel.items)
+          ? currentLevel.items.map((item) => ({
+              id: item.id,
+              label: item.label,
+              category: item.category,
+              image: item.image,
+            }))
+          : [],
+        attempts: [...attemptLog],
+        total_attempts: attemptLog.length,
+        wrong_attempts: attemptLog.filter((entry) => !entry.is_correct).length,
+        started_at: roundStartedAt ? new Date(roundStartedAt).toISOString() : null,
+        ended_at: endedAt.toISOString(),
+        duration_sec: durationSec,
+      },
     });
   }
 
@@ -282,6 +307,16 @@
     if (!item || !node || node.classList.contains("is-locked")) {
       return;
     }
+
+    const attempt = {
+      item_id: item.id,
+      item_label: item.label,
+      expected_category: item.category,
+      target_category: targetCategory,
+      is_correct: item.category === targetCategory,
+      at: new Date().toISOString(),
+    };
+    attemptLog.push(attempt);
 
     if (item.category === targetCategory) {
       const zoneBody = zoneBodyMap.get(targetCategory);
@@ -538,6 +573,8 @@
     itemNodes = new Map();
     zoneBodyMap = new Map();
     placedItemIds = new Set();
+    attemptLog = [];
+    roundStartedAt = 0;
     selectedItemId = null;
     draggedItemId = null;
     completed = false;
@@ -638,6 +675,9 @@
         return;
       }
       setRoundStarted(true);
+      if (!roundStartedAt) {
+        roundStartedAt = Date.now();
+      }
       setFeedback("遊戲開始，請進行分類。", "info");
       setStatus("遊戲進行中。");
     });

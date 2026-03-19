@@ -241,15 +241,29 @@ def build_report(session_id: str) -> dict[str, Any]:
             "moca": "MoCA",
         }.get(instrument_raw, instrument_raw.upper() or None)
 
+        llm_summary = None
+        if llm_judge:
+            llm_summary = {
+                "is_correct": llm_judge.get("is_correct"),
+                "confidence": llm_judge.get("confidence"),
+                "reason": llm_judge.get("reason"),
+                "matched_expected": llm_judge.get("matched_expected"),
+            }
+
         response_items.append(
             {
                 "question_id": question_id,
+                "question_text": question.get("text"),
                 "instrument": instrument_label,
                 "transcript": row.get("transcript"),
+                "created_at": row.get("created_at"),
                 "reaction_time_ms": {
                     "vad": rt_vad,
                     "whisper": rt_whisper,
                 },
+                "manual_confirmed": bool(manual_value) if manual_value is not None else None,
+                "rule_score": _format_rule_score(rule_score) if rule_score else None,
+                "llm_judge": llm_summary,
                 "is_correct": is_correct,
             }
         )

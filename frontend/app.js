@@ -29,7 +29,6 @@ const STR = {
 };
 
 const toast = document.getElementById("toast");
-const navLinks = document.querySelectorAll(".nav-link");
 const currentPage = document.body ? document.body.dataset.page : "";
 const LOGIN_KEY = "isLoggedIn";
 const USER_NAME_KEY = "userName";
@@ -103,7 +102,17 @@ const RESULTS_URL = "/results.html";
 const REPORT_SESSION_KEY = "latestReportSessionId";
 const IMAGE_PLACEHOLDER_IDS = new Set();
 const SESSION_MAP_KEY = "instrumentSessionMap";
+const SIDEBAR_COLLAPSED_KEY = "sidebarCollapsed";
 const API_ROOT = "/api";
+const UI_ICON_BASE = "/static/images/ui";
+const PLATFORM_ICON = `${UI_ICON_BASE}/itri_CEL_A.jpg`;
+const SIDEBAR_ICONS = {
+  menu: `${UI_ICON_BASE}/menu.png`,
+  test: `${UI_ICON_BASE}/exam.png`,
+  games: `${UI_ICON_BASE}/games.png`,
+  results: `${UI_ICON_BASE}/result.png`,
+  qa: `${UI_ICON_BASE}/qa.png`,
+};
 
 const instrumentLabels = {
   spmsq: "SPMSQ",
@@ -227,8 +236,225 @@ function isAnonymous() {
   return sessionStorage.getItem(USER_ANON_KEY) === "true";
 }
 
+function ensureFavicon() {
+  let iconLink = document.querySelector('link[rel="icon"]');
+  if (!iconLink) {
+    iconLink = document.createElement("link");
+    iconLink.rel = "icon";
+    document.head.appendChild(iconLink);
+  }
+  iconLink.type = "image/jpeg";
+  iconLink.href = PLATFORM_ICON;
+}
+
+function ensureGlobalBanner() {
+  ensureFavicon();
+  const appRoot = document.querySelector(".app");
+  if (!appRoot) {
+    return;
+  }
+  let banner = document.querySelector(".global-banner");
+  if (!banner) {
+    banner = document.createElement("header");
+    banner.className = "global-banner";
+
+    const leftSlot = document.createElement("div");
+    leftSlot.className = "global-banner-slot";
+    const icon = document.createElement("img");
+    icon.className = "global-banner-icon";
+    icon.src = PLATFORM_ICON;
+    icon.alt = "平台圖示";
+    leftSlot.appendChild(icon);
+
+    const title = document.createElement("h1");
+    title.className = "global-banner-title";
+    title.textContent = "失智統計分析平台";
+
+    const rightSlot = document.createElement("div");
+    rightSlot.className = "global-banner-slot";
+
+    banner.appendChild(leftSlot);
+    banner.appendChild(title);
+    banner.appendChild(rightSlot);
+
+    appRoot.parentElement.insertBefore(banner, appRoot);
+  }
+  document.body.classList.add("with-global-banner");
+}
+
+function ensureSidebarBrandIcon() {
+  const brandText = document.querySelector(".brand-text");
+  if (brandText) {
+    brandText.remove();
+  }
+}
+
+function isMobileSidebarLayout() {
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
 function canTakeTest() {
   return isLoggedIn();
+}
+
+function resolveActiveNavView() {
+  if (!currentPage) {
+    return "";
+  }
+  if (currentPage.startsWith("game-")) {
+    return "games";
+  }
+  if (currentPage === "exam") {
+    return "test";
+  }
+  return currentPage;
+}
+
+function navLinks() {
+  return Array.from(document.querySelectorAll(".nav-link"));
+}
+
+function createNavLink(item) {
+  const link = document.createElement("a");
+  link.className = "nav-link";
+  if (item.view === "test") {
+    link.classList.add("nav-link-test");
+  }
+  link.dataset.view = item.view;
+  link.href = item.href;
+
+  if (item.icon) {
+    const icon = document.createElement("img");
+    icon.className = "nav-icon";
+    icon.src = item.icon;
+    icon.alt = "";
+    icon.setAttribute("aria-hidden", "true");
+    link.appendChild(icon);
+  }
+
+  const label = document.createElement("span");
+  label.className = "nav-label";
+  label.textContent = item.label;
+  link.appendChild(label);
+
+  return link;
+}
+
+function ensureSidebarNavigation() {
+  const nav = document.querySelector(".nav");
+  if (nav) {
+    const desiredMainLinks = [
+      { view: "test", label: "測試", href: "/test.html", icon: SIDEBAR_ICONS.test },
+      { view: "games", label: "遊戲", href: "/games.html", icon: SIDEBAR_ICONS.games },
+      { view: "results", label: "結果分析", href: "/results.html", icon: SIDEBAR_ICONS.results },
+    ];
+    nav.innerHTML = "";
+    desiredMainLinks.forEach((item) => {
+      nav.appendChild(createNavLink(item));
+    });
+  }
+
+  const navBottom = document.querySelector(".nav-bottom");
+  if (navBottom) {
+    navBottom.innerHTML = "";
+    navBottom.appendChild(
+      createNavLink({
+        view: "qa",
+        label: "Q&A",
+        href: "/qa.html",
+        icon: SIDEBAR_ICONS.qa,
+      }),
+    );
+  }
+}
+
+function setSidebarCollapsed(collapsed, persist = true) {
+  const appRoot = document.querySelector(".app");
+  if (!appRoot) {
+    return;
+  }
+  const effectiveCollapsed = isMobileSidebarLayout() ? false : collapsed;
+  appRoot.classList.toggle("sidebar-collapsed", effectiveCollapsed);
+  const menuButton = document.querySelector(".brand-mark");
+  if (menuButton) {
+    menuButton.setAttribute("aria-expanded", String(!effectiveCollapsed));
+    menuButton.setAttribute(
+      "aria-label",
+      effectiveCollapsed ? "展開側邊欄" : "收合側邊欄",
+    );
+  }
+  if (persist && !isMobileSidebarLayout()) {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, effectiveCollapsed ? "1" : "0");
+  }
+}
+
+function initSidebarToggle() {
+  const brandMark = document.querySelector(".brand-mark");
+  if (!brandMark) {
+    return;
+  }
+
+  brandMark.classList.add("sidebar-menu-button");
+  brandMark.innerHTML = "";
+
+  const icon = document.createElement("img");
+  icon.className = "sidebar-menu-icon";
+  icon.src = SIDEBAR_ICONS.menu;
+  icon.alt = "";
+  icon.setAttribute("aria-hidden", "true");
+
+  const textLabel = document.createElement("span");
+  textLabel.className = "visually-hidden";
+  textLabel.textContent = "切換側邊欄";
+
+  brandMark.appendChild(icon);
+  brandMark.appendChild(textLabel);
+  brandMark.setAttribute("role", "button");
+  brandMark.setAttribute("tabindex", "0");
+
+  if (brandMark.dataset.toggleBound !== "1") {
+    brandMark.dataset.toggleBound = "1";
+    brandMark.addEventListener("click", () => {
+      const appRoot = document.querySelector(".app");
+      const currentlyCollapsed = appRoot
+        ? appRoot.classList.contains("sidebar-collapsed")
+        : false;
+      setSidebarCollapsed(!currentlyCollapsed, true);
+    });
+    brandMark.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        const appRoot = document.querySelector(".app");
+        const currentlyCollapsed = appRoot
+          ? appRoot.classList.contains("sidebar-collapsed")
+          : false;
+        setSidebarCollapsed(!currentlyCollapsed, true);
+      }
+    });
+  }
+
+  const storedCollapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  setSidebarCollapsed(storedCollapsed, false);
+  window.addEventListener("resize", () => {
+    const storedValue = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+    setSidebarCollapsed(storedValue, false);
+  });
+}
+
+function bindNavGuards() {
+  navLinks().forEach((link) => {
+    if (link.dataset.guardBound === "1") {
+      return;
+    }
+    link.dataset.guardBound = "1";
+    link.addEventListener("click", (event) => {
+      const view = link.dataset.view;
+      if ((view === "test" || view === "games" || view === "results") && !canTakeTest()) {
+        event.preventDefault();
+        requireTestAccess("/");
+      }
+    });
+  });
 }
 
 function generateSessionId() {
@@ -264,15 +490,11 @@ function setLoggedIn(name, age, anonymousLogin, sessionOverride) {
 
 function updateNavState() {
   const loggedIn = isLoggedIn();
-  const allowTest = canTakeTest();
-  navLinks.forEach((link) => {
-    if (link.dataset.view === "login") {
-      link.style.display = loggedIn ? "none" : "inline-flex";
-    }
-    if (link.dataset.view === "test") {
-      link.style.display = loggedIn ? "inline-flex" : "none";
-    }
-    link.classList.toggle("is-active", link.dataset.view === currentPage);
+  const activeView = resolveActiveNavView();
+  navLinks().forEach((link) => {
+    const view = link.dataset.view;
+    link.style.display = "inline-flex";
+    link.classList.toggle("is-active", view === activeView);
   });
   if (logoutBubble) {
     logoutBubble.classList.toggle("hidden", !loggedIn);
@@ -338,22 +560,15 @@ function hydrateSessionInfo() {
   }
 }
 
+ensureGlobalBanner();
+ensureSidebarBrandIcon();
+ensureSidebarNavigation();
+initSidebarToggle();
 updateNavState();
 updateLoginPanel();
 setAuthMode("login");
 hydrateSessionInfo();
-
-if (navLinks.length > 0) {
-  navLinks.forEach((link) => {
-    link.addEventListener("click", (event) => {
-      const view = link.dataset.view;
-      if (view === "test" && !canTakeTest()) {
-        event.preventDefault();
-        requireTestAccess("/");
-      }
-    });
-  });
-}
+bindNavGuards();
 
 if (loginButton) {
   loginButton.addEventListener("click", () => {

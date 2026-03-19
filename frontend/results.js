@@ -27,6 +27,7 @@
   const gamePanelEl = document.getElementById("gameScoresPanel");
   const gameScoresEl = document.getElementById("gameScores");
   const dailyRadarListEl = document.getElementById("dailyRadarList");
+  const csvExportHintEl = document.getElementById("csvExportHint");
 
   const riskTextMap = {
     none: "低風險",
@@ -53,6 +54,9 @@
     medium: "中等",
     hard: "困難",
   };
+
+  let currentExportSessionId = null;
+  let currentExportReport = null;
 
   function ensureAuthenticated() {
     if (sessionStorage.getItem(LOGIN_KEY) !== "true") {
@@ -206,6 +210,471 @@
 
   function saveReportCacheMap(cache) {
     saveJsonMap(REPORT_CACHE_KEY, cache);
+  }
+
+  function setExportHint(message, isError = false) {
+    if (!csvExportHintEl) {
+      return;
+    }
+    csvExportHintEl.textContent = message || "";
+    csvExportHintEl.style.color = isError ? "#b91c1c" : "";
+  }
+
+  function formatDateOnly(value) {
+    const date = parseDate(value);
+    return date ? formatDateLabel(date) : "";
+  }
+
+  function toSafeString(value) {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    return String(value);
+  }
+
+  function toSheetBoolean(value) {
+    if (value === true) {
+      return "TRUE";
+    }
+    if (value === false) {
+      return "FALSE";
+    }
+    return "";
+  }
+
+  function toRoundedNumber(value, digits = 0) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      return "";
+    }
+    if (digits <= 0) {
+      return Math.round(value);
+    }
+    return Number(value.toFixed(digits));
+  }
+
+  function resolveExpectedAnswer(item) {
+    if (!item || typeof item !== "object") {
+      return "";
+    }
+    const llm = item.llm_judge || {};
+    if (Array.isArray(llm.matched_expected) && llm.matched_expected.length) {
+      return llm.matched_expected.join(" | ");
+    }
+    const rule = item.rule_score || {};
+    if (rule.details) {
+      return String(rule.details);
+    }
+    return "";
+  }
+
+  function resolveResponseProcess(item) {
+    if (!item || typeof item !== "object") {
+      return "";
+    }
+    const payload = {
+      created_at: item.created_at || null,
+      manual_confirmed: item.manual_confirmed ?? null,
+      rule_score: item.rule_score || null,
+      llm_judge: item.llm_judge || null,
+    };
+    try {
+      return JSON.stringify(payload);
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function normalizeReaction(item) {
+    const reaction = item && item.reaction_time_ms ? item.reaction_time_ms : {};
+    const vadMs = toRoundedNumber(reaction.vad);
+    const whisperMs = toRoundedNumber(reaction.whisper);
+    const merged = whisperMs !== "" ? whisperMs : vadMs;
+    return {
+      vad_ms: vadMs,
+      whisper_ms: whisperMs,
+      response_time_ms: merged,
+    };
+  }
+
+  function buildTestSheetRowsForSession(sessionId, report, progress) {
+    const responses = report && Array.isArray(report.responses) ? report.responses : [];
+    const answeredCount = responses.length;
+    const totalFromProgress = progress && Number.isFinite(progress.total_questions)
+      ? Number(progress.total_questions)
+      : null;
+    const totalQuestions = Math.max(totalFromProgress || 0, answeredCount);
+
+    if (!totalQuestions && !answeredCount) {
+      return [];
+    }
+
+    const summary = report && report.summary ? report.summary : {};
+    const instrumentFallback = responses[0] && responses[0].instrument
+      ? responses[0].instrument
+      : "SPMSQ";
+
+    const rows = [];
+    let correctCount = 0;
+
+    for (let index = 0; index < totalQuestions; index += 1) {
+      const item = responses[index] || null;
+      const isAnswered = Boolean(item);
+      const isCorrect = item && typeof item.is_correct === "boolean" ? item.is_correct : false;
+      if (isCorrect) {
+        correctCount += 1;
+      }
+      const reaction = normalizeReaction(item);
+
+      rows.push({
+        row_type: "question",
+        session_id: sessionId,
+        test_date: formatDateOnly((item && item.created_at) || (report && report.created_at) || ""),
+        instrument: item && item.instrument ? item.instrument : instrumentFallback,
+        question_no: index + 1,
+        question_id: item && item.question_id ? item.question_id : "",
+        question_text: item && item.question_text ? item.question_text : "（未回覆）",
+        expected_answer: resolveExpectedAnswer(item),
+        user_answer: item && item.transcript ? item.transcript : "",
+        is_answered: toSheetBoolean(isAnswered),
+        is_correct: toSheetBoolean(isCorrect),
+        vad_ms: reaction.vad_ms,
+        whisper_ms: reaction.whisper_ms,
+        response_time_ms: reaction.response_time_ms,
+        response_process: resolveResponseProcess(item),
+        summary_total: "",
+        summary_answered: "",
+        summary_unanswered: "",
+        summary_correct: "",
+        summary_accuracy_pct: "",
+        summary_stage: "",
+        summary_note: "",
+      });
+    }
+
+    const unansweredCount = Math.max(totalQuestions - answeredCount, 0);
+    const accuracy = answeredCount > 0 ? Number(((correctCount / answeredCount) * 100).toFixed(1)) : 0;
+    rows.push({
+      row_type: "summary",
+      session_id: sessionId,
+      test_date: formatDateOnly((report && report.created_at) || ""),
+      instrument: instrumentFallback,
+      question_no: "",
+      question_id: "",
+      question_text: "",
+      expected_answer: "",
+      user_answer: "",
+      is_answered: "",
+      is_correct: "",
+      vad_ms: "",
+      whisper_ms: "",
+      response_time_ms: "",
+      response_process: "",
+      summary_total: totalQuestions,
+      summary_answered: answeredCount,
+      summary_unanswered: unansweredCount,
+      summary_correct: correctCount,
+      summary_accuracy_pct: accuracy,
+      summary_stage: formatBandText(summary.screening_risk_band || "") || "--",
+      summary_note: summary.message || "",
+    });
+
+    return rows;
+  }
+
+  function resolveGameDurationSec(payload) {
+    if (!payload || typeof payload !== "object") {
+      return "";
+    }
+    if (typeof payload.duration_sec === "number" && Number.isFinite(payload.duration_sec)) {
+      return Number(payload.duration_sec.toFixed(1));
+    }
+    if (typeof payload.elapsed_sec === "number" && Number.isFinite(payload.elapsed_sec)) {
+      return Number(payload.elapsed_sec.toFixed(1));
+    }
+    const details = payload.details || {};
+    if (typeof details.duration_sec === "number" && Number.isFinite(details.duration_sec)) {
+      return Number(details.duration_sec.toFixed(1));
+    }
+    return "";
+  }
+
+  function resolveGameAccuracy(gameKey, payload) {
+    if (!payload || typeof payload !== "object") {
+      return "";
+    }
+    if (gameKey === "logic") {
+      if (typeof payload.correct === "number" && typeof payload.total === "number" && payload.total > 0) {
+        return Number(((payload.correct / payload.total) * 100).toFixed(1));
+      }
+      return "";
+    }
+    if (gameKey === "reaction") {
+      if (typeof payload.hits === "number" && typeof payload.misses === "number") {
+        const total = payload.hits + payload.misses;
+        return total > 0 ? Number(((payload.hits / total) * 100).toFixed(1)) : "";
+      }
+      return "";
+    }
+    if (gameKey === "focus") {
+      if (typeof payload.found === "number" && typeof payload.total === "number" && payload.total > 0) {
+        return Number(((payload.found / payload.total) * 100).toFixed(1));
+      }
+      return "";
+    }
+    return "";
+  }
+
+  function buildGameSheetRowsForSession(sessionId, report, gameEntry) {
+    if (!gameEntry) {
+      return [];
+    }
+
+    const specs = [
+      { key: "logic", label: "邏輯：物件分類" },
+      { key: "reaction", label: "反應：打地鼠" },
+      { key: "focus", label: "專注：找不同" },
+    ];
+
+    const rows = [];
+    let totalScore = 0;
+    let totalDuration = 0;
+    let count = 0;
+
+    specs.forEach((spec) => {
+      const payload = gameEntry[spec.key];
+      if (!payload) {
+        return;
+      }
+      const score = typeof payload.score === "number" && Number.isFinite(payload.score)
+        ? Math.round(payload.score)
+        : "";
+      const duration = resolveGameDurationSec(payload);
+      const accuracy = resolveGameAccuracy(spec.key, payload);
+      if (typeof score === "number") {
+        totalScore += score;
+      }
+      if (typeof duration === "number") {
+        totalDuration += duration;
+      }
+      count += 1;
+
+      rows.push({
+        row_type: "game",
+        session_id: sessionId,
+        play_date: formatDateOnly(payload.completed_at || (report && report.created_at) || ""),
+        game_name: spec.label,
+        difficulty: payload.difficulty || "",
+        score,
+        duration_sec: duration,
+        accuracy_pct: accuracy,
+        notes: "",
+        total_games: "",
+        avg_score: "",
+        total_duration_sec: "",
+      });
+    });
+
+    if (!count) {
+      return [];
+    }
+
+    rows.push({
+      row_type: "summary",
+      session_id: sessionId,
+      play_date: formatDateOnly((report && report.created_at) || ""),
+      game_name: "all",
+      difficulty: "",
+      score: "",
+      duration_sec: "",
+      accuracy_pct: "",
+      notes: "",
+      total_games: count,
+      avg_score: Number((totalScore / count).toFixed(1)),
+      total_duration_sec: Number(totalDuration.toFixed(1)),
+    });
+
+    return rows;
+  }
+
+  function collectSheetHeaders(rows, preferredOrder) {
+    const seen = new Set(preferredOrder);
+    const extra = [];
+    rows.forEach((row) => {
+      Object.keys(row).forEach((key) => {
+        if (!seen.has(key)) {
+          seen.add(key);
+          extra.push(key);
+        }
+      });
+    });
+    return [...preferredOrder, ...extra];
+  }
+
+  function xmlEscape(value) {
+    const text = toSafeString(value).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ");
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function cellXml(value, styleId = "") {
+    const isNumber = typeof value === "number" && Number.isFinite(value);
+    const type = isNumber ? "Number" : "String";
+    const data = xmlEscape(isNumber ? value : toSafeString(value));
+    const styleAttr = styleId ? ` ss:StyleID="${styleId}"` : "";
+    return `<Cell${styleAttr}><Data ss:Type="${type}">${data}</Data></Cell>`;
+  }
+
+  function worksheetXml(name, headers, rows) {
+    const headerCells = headers.map((header) => cellXml(header, "Header")).join("");
+    const rowXml = rows
+      .map((row) => {
+        const cells = headers.map((header) => cellXml(row[header])).join("");
+        return `<Row>${cells}</Row>`;
+      })
+      .join("");
+    return `<Worksheet ss:Name="${xmlEscape(name)}"><Table><Row>${headerCells}</Row>${rowXml}</Table></Worksheet>`;
+  }
+
+  function buildWorkbookXml(sheets) {
+    const worksheetXmlList = sheets
+      .map((sheet) => worksheetXml(sheet.name, sheet.headers, sheet.rows))
+      .join("");
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Noto Sans TC" ss:Size="10"/></Style>
+<Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/></Style>
+</Styles>
+${worksheetXmlList}
+</Workbook>`;
+  }
+
+  async function downloadWorkbookForSessions(sessionIds, fileLabel = "") {
+    const normalizedSessionIds = Array.from(
+      new Set((sessionIds || []).filter(Boolean)),
+    );
+    if (!normalizedSessionIds.length) {
+      setExportHint("找不到可匯出資料的 Session。", true);
+      return;
+    }
+
+    const gameMap = loadGameResultsMap();
+    const reportCache = loadReportCacheMap();
+    if (currentExportSessionId && currentExportReport) {
+      reportCache[currentExportSessionId] = currentExportReport;
+    }
+
+    const testRows = [];
+    const gameRows = [];
+    let cacheUpdated = false;
+
+    for (const sessionId of normalizedSessionIds) {
+      let report = reportCache[sessionId] || null;
+      if (!report) {
+        try {
+          report = await fetchReport(sessionId);
+          reportCache[sessionId] = report;
+          cacheUpdated = true;
+        } catch (error) {
+          report = null;
+        }
+      }
+
+      const progress = await fetchProgress(sessionId);
+      testRows.push(...buildTestSheetRowsForSession(sessionId, report, progress));
+      gameRows.push(...buildGameSheetRowsForSession(sessionId, report, gameMap[sessionId] || null));
+    }
+
+    if (cacheUpdated) {
+      saveReportCacheMap(reportCache);
+    }
+
+    if (!testRows.length && !gameRows.length) {
+      setExportHint("目前沒有可匯出的測試/遊戲資料。", true);
+      return;
+    }
+
+    const testHeaderOrder = [
+      "row_type",
+      "session_id",
+      "test_date",
+      "instrument",
+      "question_no",
+      "question_id",
+      "question_text",
+      "expected_answer",
+      "user_answer",
+      "is_answered",
+      "is_correct",
+      "vad_ms",
+      "whisper_ms",
+      "response_time_ms",
+      "response_process",
+      "summary_total",
+      "summary_answered",
+      "summary_unanswered",
+      "summary_correct",
+      "summary_accuracy_pct",
+      "summary_stage",
+      "summary_note",
+    ];
+
+    const gameHeaderOrder = [
+      "row_type",
+      "session_id",
+      "play_date",
+      "game_name",
+      "difficulty",
+      "score",
+      "duration_sec",
+      "accuracy_pct",
+      "notes",
+      "total_games",
+      "avg_score",
+      "total_duration_sec",
+    ];
+
+    const workbookXml = buildWorkbookXml([
+      {
+        name: "測試",
+        headers: collectSheetHeaders(testRows, testHeaderOrder),
+        rows: testRows,
+      },
+      {
+        name: "遊戲",
+        headers: collectSheetHeaders(gameRows, gameHeaderOrder),
+        rows: gameRows,
+      },
+    ]);
+
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+    const rawLabel = fileLabel || (normalizedSessionIds.length === 1 ? normalizedSessionIds[0] : "multi");
+    const safeLabel = String(rawLabel)
+      .trim()
+      .replace(/[^\w\u4e00-\u9fff-]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "sessions";
+    const fileName = `cogscreen_${safeLabel}_${stamp}.xls`;
+
+    const blob = new Blob([`﻿${workbookXml}`], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setExportHint(`Excel 已下載：${fileName}`);
   }
 
   function applyRiskStyle(band) {
@@ -527,10 +996,14 @@
       const dateRiskBand = group.sessions.reduce((acc, session) => {
         return mergeRiskBand(acc, session.riskBand);
       }, null);
+      const sessionIds = Array.from(
+        new Set(group.sessions.map((session) => session.sessionId).filter(Boolean)),
+      );
       return {
         dateKey: group.dateKey,
         dateLabel: group.dateLabel,
         sessionCount: group.sessions.length,
+        sessionIds,
         riskBand: dateRiskBand,
         metrics,
         latestTimestamp: latest || new Date(),
@@ -716,11 +1189,27 @@
       const title = document.createElement("h3");
       title.className = "date-radar-title";
       title.textContent = "能力雷達圖";
+      const headRight = document.createElement("div");
+      headRight.className = "date-radar-head-right";
       const meta = document.createElement("p");
       meta.className = "date-radar-meta";
       meta.textContent = `Sessions: ${group.sessionCount}`;
+
+      const downloadButton = document.createElement("button");
+      downloadButton.type = "button";
+      downloadButton.className = "ghost date-radar-download";
+      downloadButton.textContent = "下載當日 Excel";
+      downloadButton.disabled = !group.sessionIds || !group.sessionIds.length;
+      downloadButton.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await downloadWorkbookForSessions(group.sessionIds || [], group.dateLabel);
+      });
+
       head.appendChild(title);
-      head.appendChild(meta);
+      headRight.appendChild(meta);
+      headRight.appendChild(downloadButton);
+      head.appendChild(headRight);
 
       const radarWrap = document.createElement("div");
       radarWrap.className = "radar-wrap";
@@ -776,6 +1265,18 @@
       throw new Error(`Report API failed: ${response.status}`);
     }
     return response.json();
+  }
+
+  async function fetchProgress(sessionId) {
+    try {
+      const response = await fetch(`${API_ROOT}/sessions/${sessionId}/progress`);
+      if (!response.ok) {
+        return null;
+      }
+      return await response.json();
+    } catch (error) {
+      return null;
+    }
   }
 
   async function buildTimelineGroups(currentSessionId, currentReport) {
@@ -857,7 +1358,11 @@
       return;
     }
 
+    setExportHint("展開日期卡片後，可下載該日期的 Excel（測試/遊戲）明細。");
+
     const sessionId = resolveSessionId();
+    currentExportSessionId = sessionId || null;
+
     if (sessionIdEl) {
       sessionIdEl.textContent = sessionId || "--";
     }
@@ -872,9 +1377,18 @@
         applyReportToSummary(currentReport);
         setStatus("報表載入完成。");
       } catch (error) {
-        setStatus("報表載入失敗，已顯示可用的歷史資料。");
+        const cache = loadReportCacheMap();
+        if (cache[sessionId]) {
+          currentReport = cache[sessionId];
+          applyReportToSummary(currentReport);
+          setStatus("報表載入失敗，已改用快取資料。");
+        } else {
+          setStatus("報表載入失敗，已顯示可用的歷史資料。");
+        }
       }
     }
+
+    currentExportReport = currentReport;
 
     const timelineGroups = await buildTimelineGroups(sessionId, currentReport);
     renderDateRadar(timelineGroups);
