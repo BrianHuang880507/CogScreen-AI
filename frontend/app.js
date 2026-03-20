@@ -1,10 +1,10 @@
 const STR = {
   loginRequired: "請先登入再進行測試",
-  loginMissing: "請輸入 Session ID",
+  loginMissing: "請輸入 Session ID 或姓名",
   loginSuccess: "登入成功",
   anonSuccess: "已以匿名方式登入",
   registerSuccess: "註冊成功",
-  registerMissing: "請輸入使用者名稱與年齡",
+  registerMissing: "請輸入使用者名稱、年齡與性別",
   logoutSuccess: "已登出",
   anonBlocked: "匿名登入無法進行測試",
   mocaBuilding: "MoCA 正在建立中",
@@ -33,7 +33,9 @@ const currentPage = document.body ? document.body.dataset.page : "";
 const LOGIN_KEY = "isLoggedIn";
 const USER_NAME_KEY = "userName";
 const USER_AGE_KEY = "userAge";
+const USER_GENDER_KEY = "userGender";
 const USER_SESSION_KEY = "userSessionId";
+const USER_GLOBAL_VIEW_KEY = "isGlobalViewer";
 const USER_ANON_KEY = "isAnonymous";
 
 const loginButton = document.getElementById("loginButton");
@@ -45,6 +47,7 @@ const loginFields = document.getElementById("loginFields");
 const registerFields = document.getElementById("registerFields");
 const userNameInput = document.getElementById("userName");
 const userAgeInput = document.getElementById("userAge");
+const userGenderInput = document.getElementById("userGender");
 const sessionInfo = document.getElementById("sessionInfo");
 const sessionIdText = document.getElementById("sessionIdText");
 const logoutBubble = document.getElementById("logoutBubble");
@@ -117,6 +120,9 @@ const SIDEBAR_ICONS = {
 const instrumentLabels = {
   spmsq: "SPMSQ",
 };
+
+const GLOBAL_VIEWER_ACCOUNT_ID = "all-sessions-admin";
+const GLOBAL_VIEWER_NAME = "系統管理員";
 
 function showToast(message) {
   if (!toast) {
@@ -476,13 +482,32 @@ function generateSessionId() {
   return `uuid-${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
 }
 
-function setLoggedIn(name, age, anonymousLogin, sessionOverride) {
+function isGlobalViewerAccount(sessionValue) {
+  if (!sessionValue) {
+    return false;
+  }
+  return String(sessionValue).trim().toLowerCase() === GLOBAL_VIEWER_ACCOUNT_ID;
+}
+
+function setLoggedIn(name, age, anonymousLogin, sessionOverride, options = {}) {
+  const { gender = "", globalViewer = false } = options;
   sessionStorage.setItem(LOGIN_KEY, "true");
   sessionStorage.setItem(USER_NAME_KEY, name || STR.anonymousName);
   sessionStorage.setItem(USER_ANON_KEY, anonymousLogin ? "true" : "false");
+  sessionStorage.setItem(USER_GLOBAL_VIEW_KEY, globalViewer ? "true" : "false");
+
   if (age) {
     sessionStorage.setItem(USER_AGE_KEY, String(age));
+  } else {
+    sessionStorage.removeItem(USER_AGE_KEY);
   }
+
+  if (gender) {
+    sessionStorage.setItem(USER_GENDER_KEY, String(gender));
+  } else {
+    sessionStorage.removeItem(USER_GENDER_KEY);
+  }
+
   const sessionUuid = sessionOverride || generateSessionId();
   sessionStorage.setItem(USER_SESSION_KEY, sessionUuid);
   return sessionUuid;
@@ -560,6 +585,44 @@ function hydrateSessionInfo() {
   }
 }
 
+async function lookupLoginTarget(rawInput) {
+  const value = String(rawInput || "").trim();
+  if (!value) {
+    return null;
+  }
+
+  const byPatientId = await apiGet(
+    `/sessions?patient_id=${encodeURIComponent(value)}&limit=8`,
+  );
+  if (byPatientId.ok && Array.isArray(byPatientId.data) && byPatientId.data.length) {
+    const first = byPatientId.data[0] || {};
+    return {
+      patientId: String(first.patient_id || value),
+      patientName: String(first.patient_name || value),
+      matchedBy: "patient_id",
+    };
+  }
+
+  const byName = await apiGet(
+    `/sessions?patient_name=${encodeURIComponent(value)}&limit=50`,
+  );
+  if (byName.ok && Array.isArray(byName.data) && byName.data.length) {
+    const needle = value.toLowerCase();
+    const exact = byName.data.find((item) => {
+      const name = String((item && item.patient_name) || "").trim().toLowerCase();
+      return name === needle;
+    });
+    const picked = exact || byName.data[0];
+    return {
+      patientId: String((picked && picked.patient_id) || value),
+      patientName: String((picked && picked.patient_name) || value),
+      matchedBy: "patient_name",
+    };
+  }
+
+  return null;
+}
+
 ensureGlobalBanner();
 ensureSidebarBrandIcon();
 ensureSidebarNavigation();
@@ -571,13 +634,35 @@ hydrateSessionInfo();
 bindNavGuards();
 
 if (loginButton) {
-  loginButton.addEventListener("click", () => {
+  loginButton.addEventListener("click", async () => {
     const sessionValue = sessionIdInput ? sessionIdInput.value.trim() : "";
     if (!sessionValue) {
       showToast(STR.loginMissing);
       return;
     }
-    const sessionUuid = setLoggedIn("", "", false, sessionValue);
+
+    const isGlobalViewer = isGlobalViewerAccount(sessionValue);
+    let loginSessionId = sessionValue;
+    let loginName = sessionValue;
+    let matchedBy = "manual";
+
+    if (!isGlobalViewer) {
+      const target = await lookupLoginTarget(sessionValue);
+      if (target && target.patientId) {
+        loginSessionId = target.patientId;
+        loginName = target.patientName || sessionValue;
+        matchedBy = target.matchedBy || "manual";
+      }
+    }
+
+    const sessionUuid = setLoggedIn(
+      isGlobalViewer ? GLOBAL_VIEWER_NAME : loginName,
+      "",
+      false,
+      loginSessionId,
+      { globalViewer: isGlobalViewer },
+    );
+
     if (sessionInfo && sessionIdText) {
       sessionIdText.textContent = sessionUuid;
       sessionInfo.classList.remove("hidden");
@@ -585,7 +670,15 @@ if (loginButton) {
     if (sessionIdInput) {
       sessionIdInput.value = sessionUuid;
     }
-    showToast(STR.loginSuccess);
+
+    if (isGlobalViewer) {
+      showToast("管理員登入成功，可查看所有 Session 紀錄");
+    } else if (matchedBy === "patient_name") {
+      showToast(`已以姓名登入：${loginName}`);
+    } else {
+      showToast(STR.loginSuccess);
+    }
+
     updateNavState();
     updateLoginPanel();
     setTimeout(() => {
@@ -605,7 +698,8 @@ if (registerButton) {
     }
     const name = userNameInput ? userNameInput.value.trim() : "";
     const ageValue = userAgeInput ? userAgeInput.value.trim() : "";
-    if (!name || !ageValue) {
+    const genderValue = userGenderInput ? userGenderInput.value.trim() : "";
+    if (!name || !ageValue || !genderValue) {
       showToast(STR.registerMissing);
       return;
     }
@@ -614,7 +708,10 @@ if (registerButton) {
       showToast(STR.registerMissing);
       return;
     }
-    const sessionUuid = setLoggedIn(name, ageNumber, false);
+    const sessionUuid = setLoggedIn(name, ageNumber, false, undefined, {
+      gender: genderValue,
+      globalViewer: false,
+    });
     if (sessionInfo && sessionIdText) {
       sessionIdText.textContent = sessionUuid;
       sessionInfo.classList.remove("hidden");
@@ -633,7 +730,9 @@ if (registerButton) {
 
 if (loginAnonymous) {
   loginAnonymous.addEventListener("click", () => {
-    const sessionUuid = setLoggedIn(STR.anonymousName, "", true);
+    const sessionUuid = setLoggedIn(STR.anonymousName, "", true, undefined, {
+      globalViewer: false,
+    });
     if (sessionInfo && sessionIdText) {
       sessionIdText.textContent = sessionUuid;
       sessionInfo.classList.remove("hidden");
@@ -823,10 +922,12 @@ async function refreshProgressCounts() {
 async function createSession() {
   const userSessionId = sessionStorage.getItem(USER_SESSION_KEY) || "anonymous";
   const age = sessionStorage.getItem(USER_AGE_KEY);
+  const name = sessionStorage.getItem(USER_NAME_KEY);
+  const gender = sessionStorage.getItem(USER_GENDER_KEY);
   const payload = {
     patient_id: userSessionId,
     instrument: selectedInstrument,
-    config: { age },
+    config: { age, name, gender },
   };
   const result = await apiPostJson("/sessions", payload);
   if (!result.ok || !result.data || !result.data.session_id) {

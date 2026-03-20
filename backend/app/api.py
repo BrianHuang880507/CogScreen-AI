@@ -27,6 +27,34 @@ async def create_session(payload: models.SessionCreateRequest) -> models.Session
     return models.SessionCreateResponse(session_id=session_id)
 
 
+@router.get("/sessions")
+async def list_sessions(
+    patient_id: str | None = None,
+    patient_name: str | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    rows = storage.list_sessions(patient_id=patient_id, patient_name=patient_name, limit=limit)
+    output: list[dict[str, Any]] = []
+    for row in rows:
+        config_raw = row.get("config_json")
+        try:
+            config = json.loads(config_raw) if config_raw else {}
+        except json.JSONDecodeError:
+            config = {}
+
+        resolved_name = config.get("name") or row.get("patient_id")
+        output.append(
+            {
+                "session_id": row.get("id"),
+                "patient_id": row.get("patient_id"),
+                "patient_name": resolved_name,
+                "patient_gender": config.get("gender"),
+                "created_at": row.get("created_at"),
+            }
+        )
+    return output
+
+
 @router.get("/sessions/{session_id}/next", response_model=models.QuestionResponse)
 async def next_question(session_id: str) -> models.QuestionResponse:
     session = storage.get_session(session_id)

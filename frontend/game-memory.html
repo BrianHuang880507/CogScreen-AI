@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/jpeg" href="/static/images/ui/itri_CEL_A.jpg" />
-    <title>失智症統計分析平台 - 物件分類遊戲</title>
+    <title>失智症統計分析平台 - 記憶配對遊戲</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=20260326" />
   </head>
-  <body data-page="game-logic">
+  <body data-page="game-memory">
     <div class="app">
       <aside class="sidebar">
         <div class="brand">
@@ -35,63 +35,47 @@
       <main class="content">
         <header class="page-header game-page-header">
           <div>
-            <h1>邏輯：物件分類</h1>
-            <p class="muted">拖曳物件圖片到正確分類區，或使用點選模式完成分類。</p>
+            <h1>記憶：圖片記憶配對</h1>
+            <p class="muted">翻牌找出所有配對，觀察短期記憶與回想策略。</p>
           </div>
           <div class="session-pill">Session ID: <span id="gameSessionId">--</span></div>
         </header>
 
         <section class="panel game-summary-panel">
-          <p id="gameStatus" class="muted game-status-line">按下藍色三角形開始。</p>
-          <div
-            id="classificationDifficultyPicker"
-            class="difficulty-picker classification-difficulty-picker"
-            aria-label="難度切換"
-          ></div>
+          <p id="gameStatus" class="muted game-status-line">請先選擇難度，再按下藍色三角形開始。</p>
+          <div class="difficulty-picker" role="group" aria-label="難度">
+            <button class="difficulty-button is-active" type="button" data-difficulty="easy">簡單</button>
+            <button class="difficulty-button" type="button" data-difficulty="medium">中等</button>
+            <button class="difficulty-button" type="button" data-difficulty="hard">困難</button>
+          </div>
           <div class="game-summary-meta game-summary-meta-right">
             <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
             <p class="game-progress">完成進度：<span id="gamesDone">0/4</span></p>
           </div>
         </section>
 
-        <section class="panel game-panel classification-game-panel">
-          <div class="game-panel-head classification-game-head">
-            <div>
-              <h2 id="classificationLevelTitle">物件分類</h2>
-              <p id="classificationLevelDescription" class="muted">
-                請將上方物件拖曳到下方正確分類區。
-              </p>
-            </div>
-            <button id="logicResetButton" class="ghost" type="button">重新開始</button>
+        <section class="panel game-panel memory-panel">
+          <div class="game-panel-head">
+            <h2>圖片記憶配對</h2>
           </div>
-
-          <p id="logicProgressMeta" class="game-progress">已完成 0/0，得分 0 分。</p>
-          <p class="muted classification-help">
-            操作方式：拖曳物件到分類區，或先點選物件再點選分類區。
-          </p>
-
-          <div class="game-start-stage">
-            <section class="classification-pool-panel" aria-labelledby="classificationPoolTitle">
-              <h3 id="classificationPoolTitle">待分類物件</h3>
-              <div id="classificationItemPool" class="classification-item-pool"></div>
-            </section>
-
-            <div class="classification-zones-panel">
-              <div id="classificationZoneGrid" class="classification-zone-grid"></div>
-            </div>
-
-            <div id="logicStartOverlay" class="game-start-overlay">
+          <p id="memoryInstruction" class="memory-instruction">請找出所有相同圖片配對。</p>
+          <div class="memory-meta">
+            <div>配對：<span id="memoryMatched">0</span>/<span id="memoryPairsTotal">8</span></div>
+            <div>翻牌：<span id="memoryMoves">0</span></div>
+            <div>耗時：<span id="memoryTimer">0.0</span> 秒</div>
+          </div>
+          <div class="memory-board-wrap">
+            <div id="memoryBoard" class="memory-board"></div>
+            <div id="memoryStartOverlay" class="game-start-overlay is-inset">
               <button
-                id="logicStartButton"
+                id="memoryStartButton"
                 class="game-start-triangle"
                 type="button"
                 aria-label="開始遊戲"
               ></button>
             </div>
           </div>
-
-          <p id="logicFeedback" class="game-feedback" aria-live="polite"></p>
-          <p id="logicResult" class="game-result">尚未完成。</p>
+          <p id="memoryResult" class="game-result">尚未開始。</p>
         </section>
       </main>
     </div>
@@ -100,8 +84,6 @@
     <div id="toast" class="toast"></div>
     <script src="app.js?v=20260323"></script>
     <script src="game-utils.js?v=20260320"></script>
-    <script src="classification-levels.js?v=20260318"></script>
-    <script src="game-logic.js?v=20260320"></script>
+    <script src="game-memory.js?v=20260326"></script>
   </body>
 </html>
-

@@ -150,6 +150,57 @@ def list_instrument_scores(session_id: str) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def list_sessions(
+    patient_id: str | None = None,
+    patient_name: str | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(int(limit), 1000))
+    with _connect() as conn:
+        if patient_id:
+            rows = conn.execute(
+                "SELECT id, patient_id, config_json, created_at FROM sessions WHERE patient_id = ? ORDER BY created_at DESC LIMIT ?",
+                (patient_id, safe_limit),
+            ).fetchall()
+        else:
+            # Name lookup needs a wider pool before in-Python filter by config_json.name
+            fetch_limit = safe_limit * 8 if patient_name else safe_limit
+            rows = conn.execute(
+                "SELECT id, patient_id, config_json, created_at FROM sessions ORDER BY created_at DESC LIMIT ?",
+                (fetch_limit,),
+            ).fetchall()
+
+    items = [dict(row) for row in rows]
+    if not patient_name:
+        return items[:safe_limit]
+
+    needle = patient_name.strip()
+    if not needle:
+        return items[:safe_limit]
+
+    exact_matches: list[dict[str, Any]] = []
+    partial_matches: list[dict[str, Any]] = []
+
+    for item in items:
+        config_raw = item.get("config_json")
+        try:
+            config = json.loads(config_raw) if config_raw else {}
+        except json.JSONDecodeError:
+            config = {}
+
+        name_value = str(config.get("name") or "").strip()
+        if not name_value:
+            continue
+
+        if name_value == needle:
+            exact_matches.append(item)
+        elif needle in name_value:
+            partial_matches.append(item)
+
+    merged = exact_matches + partial_matches
+    return merged[:safe_limit]
+
+
 def export_responses_csv(session_id: str, output_path: str) -> None:
     rows = list_responses(session_id)
     if not rows:

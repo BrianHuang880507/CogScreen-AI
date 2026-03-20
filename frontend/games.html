@@ -15,7 +15,7 @@
             href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="styles.css?v=20260319b" />
+        <link rel="stylesheet" href="styles.css?v=20260326" />
     </head>
     <body data-page="games">
         <div class="app">
@@ -49,7 +49,7 @@
                     <div>
                         <h1>測驗後遊戲選單</h1>
                         <p class="muted">
-                            請選擇卡片進入單一遊戲頁面。三個遊戲完成後可前往結果分析。
+                            請選擇卡片進入單一遊戲頁面。完成四類能力後可前往結果分析（邏輯類任一遊戲完成即可）。
                         </p>
                     </div>
                     <div class="session-pill">
@@ -60,7 +60,7 @@
                 <section class="panel game-summary-panel">
                     <div class="game-summary-meta">
                         <p class="game-progress">
-                            完成進度：<span id="gamesDone">0/3</span>
+                            完成進度：<span id="gamesDone">0/4</span>
                         </p>
                         <p id="gameStatus" class="muted">點選卡片進入遊戲。</p>
                     </div>
@@ -112,6 +112,41 @@
 
                     <button
                         class="test-card game-select-card"
+                        data-game="sequence"
+                        type="button"
+                    >
+                        <div class="game-preview game-preview-sequence">
+                            <img
+                                class="game-preview-bg"
+                                src="/static/images/games/classify_thumbnail.png"
+                                alt=""
+                                aria-hidden="true"
+                            />
+                        </div>
+                        <div class="card-body">
+                            <div class="game-card-head">
+                                <h3>邏輯：數字順序</h3>
+                                <span class="game-mode-tag">順序推理</span>
+                            </div>
+                            <p class="card-purpose">
+                                依照 1 到 9 的順序快速點擊，觀察規則執行與工作記憶。
+                            </p>
+                            <p class="card-highlight">形式：單頁順序點擊。</p>
+                            <div class="game-card-foot">
+                                <span class="game-meta-tag"
+                                    >重點：順序與規劃</span
+                                >
+                                <span
+                                    class="game-state-chip"
+                                    data-game-chip="sequence"
+                                    >未完成</span
+                                >
+                            </div>
+                        </div>
+                    </button>
+
+                    <button
+                        class="test-card game-select-card"
                         data-game="reaction"
                         type="button"
                     >
@@ -137,6 +172,41 @@
                                 <span
                                     class="game-state-chip"
                                     data-game-chip="reaction"
+                                    >未完成</span
+                                >
+                            </div>
+                        </div>
+                    </button>
+
+                    <button
+                        class="test-card game-select-card"
+                        data-game="memory"
+                        type="button"
+                    >
+                        <div class="game-preview game-preview-memory">
+                            <img
+                                class="game-preview-bg"
+                                src="/static/images/games/spot-the-diff_thumbnail.png"
+                                alt=""
+                                aria-hidden="true"
+                            />
+                        </div>
+                        <div class="card-body">
+                            <div class="game-card-head">
+                                <h3>記憶：圖片配對</h3>
+                                <span class="game-mode-tag">短期記憶</span>
+                            </div>
+                            <p class="card-purpose">
+                                翻牌找出相同圖片配對，觀察短期記憶與回想策略。
+                            </p>
+                            <p class="card-highlight">形式：牌面記憶配對。</p>
+                            <div class="game-card-foot">
+                                <span class="game-meta-tag"
+                                    >重點：記憶維持</span
+                                >
+                                <span
+                                    class="game-state-chip"
+                                    data-game-chip="memory"
                                     >未完成</span
                                 >
                             </div>
@@ -184,7 +254,7 @@
         <button id="logoutBubble" class="logout-bubble hidden">登出</button>
         <div id="toast" class="toast"></div>
         <script src="app.js?v=20260323"></script>
-        <script src="game-utils.js?v=20260317"></script>
-        <script src="games.js?v=20260317"></script>
+        <script src="game-utils.js?v=20260320"></script>
+        <script src="games.js?v=20260320b"></script>
     </body>
 </html>

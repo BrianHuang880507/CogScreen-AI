@@ -100,7 +100,6 @@ body.with-global-banner .content {
     gap: 10px;
 }
 
-
 .app.sidebar-collapsed .sidebar {
     width: 84px;
     padding: 20px 12px;
@@ -975,13 +974,19 @@ a.ghost {
     gap: 12px;
 }
 
+.login-admin-hint {
+    margin: 0;
+    font-size: 13px;
+}
+
 .login-form label {
     display: grid;
     gap: 6px;
     font-weight: 600;
 }
 
-input {
+input,
+select {
     padding: 10px 12px;
     border-radius: 10px;
     border: 1px solid #d6dbe8;
@@ -1074,7 +1079,7 @@ body[data-page^="game-"] .game-page-header h1 {
 }
 
 body[data-page^="game-"] .game-summary-panel {
-    background: #e4e7ee;
+    background: #ffffff;
     border: 1px solid #d6dae3;
     border-radius: 16px;
     box-shadow: none;
@@ -1216,7 +1221,10 @@ body[data-page^="game-"] .game-panel {
     border-radius: 0;
     cursor: pointer;
     filter: drop-shadow(0 8px 14px rgba(74, 120, 199, 0.36));
-    transition: transform 0.12s ease, filter 0.12s ease, border-left-color 0.12s ease;
+    transition:
+        transform 0.12s ease,
+        filter 0.12s ease,
+        border-left-color 0.12s ease;
 }
 
 .game-start-triangle:hover {
@@ -1279,7 +1287,10 @@ body[data-page^="game-"] .game-panel {
     flex-wrap: wrap;
     align-content: flex-start;
     gap: 14px;
-    transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease,
+        background-color 120ms ease;
 }
 
 .classification-item-pool.is-drop-target {
@@ -1303,13 +1314,19 @@ body[data-page^="game-"] .game-panel {
     color: #0f172a;
     cursor: grab;
     user-select: none;
+    touch-action: none;
+    -webkit-user-drag: none;
     display: grid;
     grid-template-rows: 72px;
     justify-items: center;
     align-content: center;
     gap: 0;
     padding: 10px;
-    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, opacity 120ms ease;
+    transition:
+        transform 120ms ease,
+        box-shadow 120ms ease,
+        border-color 120ms ease,
+        opacity 120ms ease;
 }
 
 .classification-item:active {
@@ -1408,7 +1425,10 @@ body[data-page^="game-"] .game-panel {
     align-content: flex-start;
     justify-content: center;
     gap: 12px;
-    transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease,
+        background-color 120ms ease;
 }
 
 .classification-zone.is-valid-target .classification-zone-body {
@@ -2225,5 +2245,494 @@ body[data-page^="game-"] .game-panel {
 
     .classification-zone-body {
         min-height: 220px;
+    }
+}
+
+.game-preview-sequence {
+    background: linear-gradient(180deg, #dbeafe 0%, #e2e8f0 100%);
+}
+
+.game-preview-memory {
+    background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.memory-panel,
+.sequence-panel {
+    gap: 14px;
+}
+
+.memory-instruction,
+.sequence-instruction,
+.sequence-next {
+    margin: 0;
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.sequence-next strong {
+    color: #dc2626;
+}
+
+.memory-meta,
+.sequence-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.memory-board-wrap,
+.sequence-board-wrap {
+    position: relative;
+    border-radius: 16px;
+    padding: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    background: #f8fafc;
+}
+
+.memory-board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(64px, 1fr));
+    gap: 12px;
+}
+
+.memory-card {
+    aspect-ratio: 1;
+    border: 2px solid rgba(71, 85, 105, 0.55);
+    border-radius: 14px;
+    background: #e5e7eb;
+    display: grid;
+    place-items: center;
+    font-size: 34px;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform 0.12s ease,
+        border-color 0.12s ease,
+        background-color 0.12s ease;
+}
+
+.memory-card .memory-card-back {
+    display: none;
+}
+
+.memory-card.is-revealed {
+    border-color: #22c55e;
+    background: #f0fdf4;
+}
+
+.memory-card.is-revealed .memory-card-front {
+    display: none;
+}
+
+.memory-card.is-revealed .memory-card-back {
+    display: block;
+}
+
+.memory-card:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.sequence-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    gap: 12px;
+}
+
+.sequence-tile {
+    height: 86px;
+    border-radius: 14px;
+    border: 1px solid #0f172a;
+    background: #0b1220;
+    color: #ffffff;
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform 0.08s ease,
+        box-shadow 0.12s ease,
+        border-color 0.12s ease;
+}
+
+.sequence-tile:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.26);
+}
+
+.sequence-tile.is-correct {
+    border-color: #16a34a;
+    background: #14532d;
+}
+
+.sequence-tile.is-wrong {
+    border-color: #ef4444;
+    background: #7f1d1d;
+}
+
+@media (max-width: 820px) {
+    .memory-board {
+        grid-template-columns: repeat(4, minmax(56px, 1fr));
+        gap: 8px;
+    }
+
+    .memory-card {
+        border-radius: 10px;
+        font-size: 26px;
+    }
+
+    .sequence-tile {
+        height: 72px;
+        border-radius: 10px;
+    }
+}
+
+/* Sequence / Memory visual tuning (2026-03-20) */
+.memory-board {
+    grid-template-columns: repeat(var(--memory-columns, 4), minmax(56px, 74px));
+    justify-content: center;
+    gap: 10px;
+}
+
+.memory-card {
+    width: 100%;
+    max-width: 74px;
+    border-radius: 12px;
+}
+
+.memory-card-front {
+    font-size: clamp(24px, 2.4vw, 30px);
+    color: #334155;
+}
+
+.memory-card-back {
+    font-size: clamp(36px, 4vw, 50px);
+    line-height: 1;
+}
+
+.memory-card.is-revealed {
+    border-color: #22c55e;
+    background: transparent;
+}
+
+.memory-card.is-revealed .memory-card-back {
+    display: block;
+    transform: scale(1.08);
+}
+
+.sequence-board {
+    grid-template-columns: repeat(
+        var(--sequence-columns, 3),
+        minmax(64px, 92px)
+    );
+    justify-content: center;
+}
+
+.sequence-tile {
+    height: auto;
+    min-height: 64px;
+    aspect-ratio: 1;
+    font-size: clamp(24px, 3.2vw, 38px);
+}
+
+.sequence-tile:disabled {
+    cursor: default;
+}
+
+@media (max-width: 820px) {
+    .memory-board {
+        grid-template-columns: repeat(
+            var(--memory-columns, 4),
+            minmax(50px, 64px)
+        );
+        gap: 8px;
+    }
+
+    .memory-card {
+        max-width: 64px;
+    }
+
+    .memory-card-back {
+        font-size: clamp(30px, 6vw, 40px);
+    }
+
+    .sequence-board {
+        grid-template-columns: repeat(
+            var(--sequence-columns, 3),
+            minmax(54px, 76px)
+        );
+        gap: 10px;
+    }
+
+    .sequence-tile {
+        min-height: 54px;
+        border-radius: 10px;
+    }
+}
+
+/* ===== Refinements requested 2026-03-20 ===== */
+body[data-page^="game-"] .game-summary-panel {
+    background: #ffffff;
+    border: 1px solid #dbe2ef;
+    box-shadow: none;
+    padding: 10px 16px;
+}
+
+.memory-card-back {
+    opacity: 1;
+    filter: saturate(1.28) contrast(1.12) brightness(1.02);
+}
+
+.memory-card.is-revealed {
+    background: #e5e7eb;
+}
+
+.whack-arena {
+    touch-action: none;
+}
+
+.whack-arena.is-pointer-active .whack-hammer {
+    opacity: 0.92;
+}
+
+@media (hover: none) {
+    .whack-hammer {
+        display: block;
+        opacity: 0.92;
+    }
+}
+
+.date-radar-table-head {
+    display: grid;
+    grid-template-columns:
+        minmax(210px, 1.05fr) minmax(180px, 0.9fr) minmax(320px, 1.8fr)
+        minmax(120px, 0.7fr);
+    gap: 12px;
+    padding: 12px 18px;
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    border-radius: 18px;
+    background: #f8fbff;
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
+.date-radar-head-cell {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1;
+}
+
+.date-radar-head-cell:nth-child(n + 2) {
+    font-size: 24px;
+}
+
+.date-radar-row-card {
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #f8fafc;
+}
+
+.date-radar-row-toggle {
+    display: grid;
+    grid-template-columns:
+        minmax(210px, 1.05fr) minmax(180px, 0.9fr) minmax(320px, 1.8fr)
+        minmax(120px, 0.7fr);
+    gap: 12px;
+    align-items: center;
+    padding: 16px 18px;
+}
+
+.date-radar-row-toggle::after {
+    content: none;
+}
+
+.date-radar-col {
+    margin: 0;
+    color: #0f172a;
+}
+
+.date-radar-col-session {
+    font-family: "Space Grotesk", "Noto Sans TC", sans-serif;
+    font-size: 29px;
+    line-height: 1.25;
+    word-break: break-all;
+}
+
+.date-radar-col-date {
+    font-size: 28px;
+}
+
+.date-radar-col-summary {
+    font-size: 26px;
+    color: #0f172a;
+}
+
+.date-radar-col-action {
+    display: flex;
+    justify-content: center;
+}
+
+.date-radar-toggle-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 90px;
+    height: 46px;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 2px solid #0f172a;
+    background: #10b981;
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.date-radar-card[open] .date-radar-row-toggle {
+    border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+@media (max-width: 1200px) {
+    .date-radar-table-head,
+    .date-radar-row-toggle {
+        grid-template-columns:
+            minmax(180px, 1fr) minmax(150px, 0.9fr) minmax(220px, 1.6fr)
+            minmax(96px, 0.6fr);
+        gap: 10px;
+    }
+
+    .date-radar-col-session {
+        font-size: 22px;
+    }
+
+    .date-radar-col-date,
+    .date-radar-col-summary {
+        font-size: 18px;
+    }
+
+    .date-radar-head-cell {
+        font-size: 18px;
+    }
+
+    .date-radar-head-cell:nth-child(n + 2) {
+        font-size: 16px;
+    }
+
+    .date-radar-toggle-pill {
+        min-width: 76px;
+        height: 40px;
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 900px) {
+    .date-radar-table-head {
+        display: none;
+    }
+
+    .date-radar-row-toggle {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .date-radar-col-action {
+        justify-content: flex-start;
+    }
+}
+
+/* ===== Follow-up refinements 2026-03-20 (pass 2) ===== */
+body[data-page^="game-"] .game-page-header {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 8px;
+}
+
+body[data-page^="game-"] .game-page-header .session-pill {
+    box-shadow: none;
+}
+
+.memory-card {
+    background: #ffffff;
+    border-color: #22c55e;
+}
+
+.memory-card-back {
+    opacity: 1 !important;
+    filter: none !important;
+    font-family:
+        "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-size: clamp(38px, 4.4vw, 54px);
+}
+
+.memory-card.is-revealed {
+    background: transparent;
+}
+
+.memory-card:disabled {
+    opacity: 1;
+    color: inherit;
+    -webkit-text-fill-color: currentColor;
+}
+
+.date-radar-head-cell {
+    font-size: 18px;
+}
+
+.date-radar-head-cell:nth-child(n + 2) {
+    font-size: 18px;
+}
+
+.date-radar-col-session {
+    font-size: 22px;
+}
+
+.date-radar-col-date,
+.date-radar-col-summary {
+    font-size: 18px;
+}
+
+.date-radar-toggle-pill {
+    min-width: 84px;
+    height: 42px;
+    font-size: 16px;
+}
+
+.date-radar-score-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.date-radar-score-card {
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #ffffff;
+    padding: 10px 12px;
+}
+
+.date-radar-score-card h4 {
+    margin: 0 0 8px;
+    font-size: 16px;
+}
+
+.date-radar-score-card p {
+    margin: 0 0 6px;
+    color: #334155;
+    font-size: 14px;
+}
+
+@media (max-width: 1000px) {
+    .date-radar-score-grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .date-radar-score-grid {
+        grid-template-columns: 1fr;
     }
 }

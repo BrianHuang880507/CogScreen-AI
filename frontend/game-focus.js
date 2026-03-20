@@ -89,7 +89,7 @@
   function renderProgress() {
     const entry = flow.getSessionGameResults(sessionId);
     if (doneEl) {
-      doneEl.textContent = `${flow.countCompletedGames(entry)}/${flow.GAME_KEYS.length}`;
+      doneEl.textContent = `${flow.countCompletedGames(entry)}/${Array.isArray(flow.REQUIRED_CATEGORIES) ? flow.REQUIRED_CATEGORIES.length : flow.GAME_KEYS.length}`;
     }
   }
 
@@ -123,7 +123,7 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("三個遊戲已完成，將前往結果分析。");
+      setStatus("四類能力遊戲已完成，將前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
       }, 1500);

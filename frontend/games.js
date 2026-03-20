@@ -21,11 +21,27 @@
     sessionIdEl.textContent = sessionId || "--";
   }
 
+  function requiredCount() {
+    return Array.isArray(flow.REQUIRED_CATEGORIES)
+      ? flow.REQUIRED_CATEGORIES.length
+      : flow.GAME_KEYS.length;
+  }
+
   function setStatus(text) {
     if (!statusEl) {
       return;
     }
     statusEl.textContent = text;
+  }
+
+  function isCardCompleted(entry, gameKey) {
+    if (!entry || !gameKey) {
+      return false;
+    }
+    if (gameKey === "logic" || gameKey === "sequence") {
+      return flow.isCategoryCompleted(entry, "logic");
+    }
+    return Boolean(entry[gameKey]);
   }
 
   function render() {
@@ -34,19 +50,19 @@
     const allDone = flow.allGamesCompleted(entry);
 
     if (doneEl) {
-      doneEl.textContent = `${done}/${flow.GAME_KEYS.length}`;
+      doneEl.textContent = `${done}/${requiredCount()}`;
     }
 
     chips.forEach((chip) => {
       const gameKey = chip.dataset.gameChip;
-      const isDone = Boolean(entry[gameKey]);
+      const isDone = isCardCompleted(entry, gameKey);
       chip.textContent = isDone ? "已完成" : "未完成";
       chip.classList.toggle("is-done", isDone);
     });
 
     gameCards.forEach((card) => {
       const gameKey = card.dataset.game;
-      card.classList.toggle("is-done", Boolean(entry[gameKey]));
+      card.classList.toggle("is-done", isCardCompleted(entry, gameKey));
       card.disabled = !sessionId;
     });
 
@@ -60,7 +76,7 @@
     }
 
     if (allDone) {
-      setStatus("三個遊戲均已完成，將自動前往結果分析。");
+      setStatus("四類能力遊戲已完成，將自動前往結果分析。");
       if (autoRedirectTimer) {
         window.clearTimeout(autoRedirectTimer);
       }
@@ -68,7 +84,7 @@
         window.location.href = flow.buildResultsUrl(sessionId);
       }, 2200);
     } else {
-      setStatus("請點選卡片進入遊戲。");
+      setStatus("請點選卡片進入遊戲（邏輯類任一遊戲完成即可）。");
       if (autoRedirectTimer) {
         window.clearTimeout(autoRedirectTimer);
         autoRedirectTimer = null;

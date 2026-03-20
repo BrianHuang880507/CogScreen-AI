@@ -35,13 +35,14 @@
       <main class="content">
         <section class="panel">
           <h1>登入</h1>
-          <p class="muted">請輸入 Session ID 登入，或點選註冊建立新使用者。</p>
+          <p class="muted">請輸入 Session ID 或姓名登入，或點選註冊建立新使用者。</p>
           <div class="login-form">
             <div id="loginFields" class="login-fields">
               <label>
-                Session ID
-                <input id="sessionIdInput" type="text" placeholder="請輸入 Session ID" />
+                Session ID / 姓名
+                <input id="sessionIdInput" type="text" placeholder="請輸入 Session ID 或姓名" />
               </label>
+              <p class="muted login-admin-hint">管理員查看全部紀錄帳號：<code>all-sessions-admin</code></p>
             </div>
             <div id="registerFields" class="register-fields hidden" hidden>
               <label>
@@ -51,6 +52,15 @@
               <label>
                 年齡
                 <input id="userAge" type="number" min="1" max="120" placeholder="例如：72" />
+              </label>
+              <label>
+                性別
+                <select id="userGender">
+                  <option value="">請選擇</option>
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                  <option value="other">其他</option>
+                </select>
               </label>
             </div>
           </div>

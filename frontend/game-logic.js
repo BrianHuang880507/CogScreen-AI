@@ -39,6 +39,9 @@
   let currentLevel = null;
   let selectedItemId = null;
   let draggedItemId = null;
+  let touchDragState = null;
+  let hoveredTouchZone = null;
+  let suppressClickItemId = null;
   let completed = false;
   let roundStarted = false;
   let placedItemIds = new Set();
@@ -77,7 +80,7 @@
   function renderProgress() {
     const entry = flow.getSessionGameResults(sessionId);
     if (doneEl) {
-      doneEl.textContent = `${flow.countCompletedGames(entry)}/${flow.GAME_KEYS.length}`;
+      doneEl.textContent = `${flow.countCompletedGames(entry)}/${Array.isArray(flow.REQUIRED_CATEGORIES) ? flow.REQUIRED_CATEGORIES.length : flow.GAME_KEYS.length}`;
     }
   }
 
@@ -90,7 +93,7 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("三個遊戲已完成，將前往結果分析。");
+      setStatus("四類能力遊戲已完成，將前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
       }, 1700);
@@ -248,6 +251,7 @@
     if (!itemPoolEl) {
       return;
     }
+
     const node = itemNodes.get(itemId);
     if (!node || node.classList.contains("is-locked")) {
       return;
@@ -354,6 +358,10 @@
   }
 
   function handleItemClick(itemId) {
+    if (suppressClickItemId === itemId) {
+      suppressClickItemId = null;
+      return;
+    }
     if (completed) {
       return;
     }
@@ -413,6 +421,203 @@
     markValidTargetZone(null);
   }
 
+  function findZoneByPoint(clientX, clientY) {
+    const target = document.elementFromPoint(clientX, clientY);
+    if (!target) {
+      return null;
+    }
+    return target.closest(".classification-zone");
+  }
+
+  function isPointInsideElement(el, clientX, clientY) {
+    if (!el) {
+      return false;
+    }
+    const rect = el.getBoundingClientRect();
+    return (
+      clientX >= rect.left
+      && clientX <= rect.right
+      && clientY >= rect.top
+      && clientY <= rect.bottom
+    );
+  }
+
+  function updateTouchZoneHover(clientX, clientY) {
+    const nextZone = findZoneByPoint(clientX, clientY);
+    if (hoveredTouchZone && hoveredTouchZone !== nextZone) {
+      resetZoneHoverState(hoveredTouchZone);
+      hoveredTouchZone = null;
+    }
+    if (nextZone) {
+      showZoneHoverState(nextZone);
+      hoveredTouchZone = nextZone;
+    }
+    return nextZone;
+  }
+
+  function resetTouchDragStyles(node) {
+    if (!node) {
+      return;
+    }
+    node.classList.remove("is-dragging");
+    node.style.position = "";
+    node.style.left = "";
+    node.style.top = "";
+    node.style.width = "";
+    node.style.height = "";
+    node.style.zIndex = "";
+    node.style.pointerEvents = "";
+    node.style.margin = "";
+  }
+
+  function clearTouchDragState() {
+    if (hoveredTouchZone) {
+      resetZoneHoverState(hoveredTouchZone);
+      hoveredTouchZone = null;
+    }
+    markValidTargetZone(null);
+    touchDragState = null;
+    window.removeEventListener("pointermove", handleTouchPointerMove);
+    window.removeEventListener("pointerup", handleTouchPointerUp);
+    window.removeEventListener("pointercancel", handleTouchPointerCancel);
+  }
+
+  function beginTouchDragging(state, clientX, clientY) {
+    const { node, item } = state;
+    if (!node || !item) {
+      return;
+    }
+    const rect = node.getBoundingClientRect();
+    state.dragging = true;
+    state.offsetX = state.startX - rect.left;
+    state.offsetY = state.startY - rect.top;
+
+    clearSelection();
+    draggedItemId = state.itemId;
+    node.classList.add("is-dragging");
+    node.style.position = "fixed";
+    node.style.width = `${Math.max(1, Math.round(rect.width))}px`;
+    node.style.height = `${Math.max(1, Math.round(rect.height))}px`;
+    node.style.left = `${Math.round(clientX - state.offsetX)}px`;
+    node.style.top = `${Math.round(clientY - state.offsetY)}px`;
+    node.style.zIndex = "1200";
+    node.style.pointerEvents = "none";
+    node.style.margin = "0";
+
+    markValidTargetZone(item.category);
+    setFeedback(`拖曳「${item.label}」到「${item.category}」分類區。`, "info");
+  }
+
+  function handleTouchPointerMove(event) {
+    const state = touchDragState;
+    if (!state || event.pointerId !== state.pointerId) {
+      return;
+    }
+    if (completed || !roundStarted) {
+      clearTouchDragState();
+      return;
+    }
+
+    const deltaX = event.clientX - state.startX;
+    const deltaY = event.clientY - state.startY;
+    const movedEnough = Math.hypot(deltaX, deltaY) >= 8;
+
+    if (!state.dragging) {
+      if (!movedEnough) {
+        return;
+      }
+      beginTouchDragging(state, event.clientX, event.clientY);
+    }
+
+    event.preventDefault();
+    const node = state.node;
+    if (node) {
+      node.style.left = `${Math.round(event.clientX - state.offsetX)}px`;
+      node.style.top = `${Math.round(event.clientY - state.offsetY)}px`;
+    }
+    updateTouchZoneHover(event.clientX, event.clientY);
+  }
+
+  function finalizeTouchDrop(clientX, clientY) {
+    const state = touchDragState;
+    if (!state) {
+      return;
+    }
+    const { itemId, node } = state;
+    resetTouchDragStyles(node);
+
+    const zone = updateTouchZoneHover(clientX, clientY);
+    if (zone && zone.dataset && zone.dataset.category) {
+      tryPlaceItem(itemId, zone.dataset.category);
+    } else if (isPointInsideElement(itemPoolEl, clientX, clientY)) {
+      returnToPool(itemId);
+    } else {
+      returnToPool(itemId);
+    }
+
+    suppressClickItemId = itemId;
+    draggedItemId = null;
+  }
+
+  function handleTouchPointerUp(event) {
+    const state = touchDragState;
+    if (!state || event.pointerId !== state.pointerId) {
+      return;
+    }
+
+    if (state.dragging) {
+      event.preventDefault();
+      finalizeTouchDrop(event.clientX, event.clientY);
+    }
+    clearTouchDragState();
+  }
+
+  function handleTouchPointerCancel(event) {
+    const state = touchDragState;
+    if (!state || event.pointerId !== state.pointerId) {
+      return;
+    }
+    if (state.dragging) {
+      resetTouchDragStyles(state.node);
+      draggedItemId = null;
+    }
+    clearTouchDragState();
+  }
+
+  function handlePointerStart(event, itemId) {
+    if (event.pointerType === "mouse") {
+      return;
+    }
+    if (completed || !roundStarted) {
+      return;
+    }
+    if (touchDragState) {
+      clearTouchDragState();
+    }
+
+    const node = itemNodes.get(itemId);
+    const item = getItemById(itemId);
+    if (!node || !item || node.classList.contains("is-locked")) {
+      return;
+    }
+
+    touchDragState = {
+      pointerId: event.pointerId,
+      itemId,
+      item,
+      node,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: 0,
+      offsetY: 0,
+      dragging: false,
+    };
+
+    window.addEventListener("pointermove", handleTouchPointerMove, { passive: false });
+    window.addEventListener("pointerup", handleTouchPointerUp);
+    window.addEventListener("pointercancel", handleTouchPointerCancel);
+  }
+
   function createItemNode(item) {
     const button = document.createElement("button");
     button.type = "button";
@@ -449,6 +654,7 @@
     button.addEventListener("click", () => handleItemClick(item.id));
     button.addEventListener("dragstart", (event) => handleDragStart(event, item.id));
     button.addEventListener("dragend", () => handleDragEnd(item.id));
+    button.addEventListener("pointerdown", (event) => handlePointerStart(event, item.id));
     return button;
   }
 
@@ -580,6 +786,7 @@
     completed = false;
     setRoundStarted(false);
     clearRedirect();
+    clearTouchDragState();
     clearZoneStateClasses();
 
     if (levelTitleEl) {

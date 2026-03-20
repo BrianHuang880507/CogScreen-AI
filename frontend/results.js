@@ -5,12 +5,13 @@
   const REPORT_CACHE_KEY = "reportCacheBySession";
   const API_ROOT = "/api";
 
-  const DIMENSION_KEYS = ["cognitive", "logic", "reaction", "focus"];
+  const DIMENSION_KEYS = ["cognitive", "logic", "reaction", "focus", "memory"];
   const DIMENSION_LABELS = {
     cognitive: "認知",
     logic: "邏輯",
     reaction: "反應",
     focus: "專注",
+    memory: "記憶",
   };
 
   const sessionIdEl = document.getElementById("resultSessionId");
@@ -74,6 +75,45 @@
       return fromQuery;
     }
     return sessionStorage.getItem(REPORT_SESSION_KEY);
+  }
+
+
+  function resolveViewerContext() {
+    return {
+      viewerPatientId: sessionStorage.getItem("userSessionId") || "",
+      isGlobalViewer: sessionStorage.getItem("isGlobalViewer") === "true",
+    };
+  }
+
+  async function fetchSessionDirectory(viewerContext) {
+    const params = new URLSearchParams();
+    if (!viewerContext.isGlobalViewer && viewerContext.viewerPatientId) {
+      params.set("patient_id", viewerContext.viewerPatientId);
+    }
+    params.set("limit", "400");
+    const query = params.toString();
+    const url = `${API_ROOT}/sessions${query ? `?${query}` : ""}`;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        return [];
+      }
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        return [];
+      }
+      return data
+        .filter((item) => item && item.session_id)
+        .map((item) => ({
+          session_id: String(item.session_id),
+          patient_id: item.patient_id ? String(item.patient_id) : "",
+          patient_name: item.patient_name ? String(item.patient_name) : "",
+          patient_gender: item.patient_gender ? String(item.patient_gender) : "",
+          created_at: item.created_at || "",
+        }));
+    } catch (error) {
+      return [];
+    }
   }
 
   function setStatus(message) {
@@ -161,6 +201,45 @@
     return logicDifficultyTextMap[value] || value;
   }
 
+  function resolveGameScore(payload) {
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+    if (typeof payload.score !== "number" || !Number.isFinite(payload.score)) {
+      return null;
+    }
+    return payload.score;
+  }
+
+  function resolveLogicMetric(gameEntry) {
+    if (!gameEntry || typeof gameEntry !== "object") {
+      return null;
+    }
+    const candidates = [
+      resolveGameScore(gameEntry.logic),
+      resolveGameScore(gameEntry.sequence),
+    ].filter((value) => typeof value === "number");
+    if (!candidates.length) {
+      return null;
+    }
+    return Math.max(...candidates);
+  }
+
+  function resolveMemoryMetric(gameEntry) {
+    if (!gameEntry || typeof gameEntry !== "object") {
+      return null;
+    }
+    const score = resolveGameScore(gameEntry.memory);
+    return typeof score === "number" ? score : null;
+  }
+
+  function hasAnyGameResult(entry) {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+    return Boolean(entry.logic || entry.sequence || entry.reaction || entry.focus || entry.memory);
+  }
+
   function formatDateKey(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -212,6 +291,264 @@
     saveJsonMap(REPORT_CACHE_KEY, cache);
   }
 
+  function shouldSeedDemoSession(sessionId) {
+    if (!sessionId) {
+      return false;
+    }
+    return /^demo[-_]/i.test(String(sessionId));
+  }
+
+  function buildDemoResponses(baseDate) {
+    const sections = [
+      {
+        instrument: "AD8",
+        prefix: "AD8_Q",
+        total: 8,
+        wrongSet: new Set([2, 6]),
+        vadBase: 860,
+        whisperOffset: 340,
+      },
+      {
+        instrument: "SPMSQ",
+        prefix: "SPMSQ_Q",
+        total: 10,
+        wrongSet: new Set([4, 10, 11]),
+        vadBase: 980,
+        whisperOffset: 410,
+      },
+      {
+        instrument: "MMSE",
+        prefix: "MMSE_Q",
+        total: 20,
+        wrongSet: new Set([2, 8, 12, 17]),
+        vadBase: 1040,
+        whisperOffset: 450,
+      },
+      {
+        instrument: "MoCA",
+        prefix: "MOCA_Q",
+        total: 30,
+        wrongSet: new Set([3, 7, 11, 16, 21, 29]),
+        vadBase: 1110,
+        whisperOffset: 480,
+      },
+    ];
+
+    const responses = [];
+    let order = 0;
+
+    sections.forEach((section) => {
+      for (let index = 1; index <= section.total; index += 1) {
+        const createdAt = new Date(baseDate.getTime() + order * 29000);
+        const isCorrect = !section.wrongSet.has(index);
+        const expected = `${section.instrument} 參考答案 ${index}`;
+        const answer = isCorrect
+          ? expected
+          : `${section.instrument} 回覆 ${index}（偏差）`;
+        const vadMs = section.vadBase + index * 34;
+        const whisperMs = vadMs + section.whisperOffset + (index % 3) * 41;
+
+        responses.push({
+          instrument: section.instrument,
+          question_id: `${section.prefix}${index}`,
+          question_text: `${section.instrument} 題目 ${index}`,
+          transcript: answer,
+          is_correct: isCorrect,
+          reaction_time_ms: {
+            vad: vadMs,
+            whisper: whisperMs,
+          },
+          rule_score: {
+            score: isCorrect ? 1 : 0,
+            details: `預期答案：${expected}`,
+          },
+          llm_judge: {
+            matched_expected: [expected],
+            confidence: isCorrect ? 0.93 : 0.63,
+          },
+          manual_confirmed: true,
+          created_at: createdAt.toISOString(),
+        });
+
+        order += 1;
+      }
+    });
+
+    return responses;
+  }
+
+  function buildDemoReport(sessionId) {
+    const createdAt = new Date("2026-03-20T09:35:00+08:00");
+    const responses = buildDemoResponses(createdAt);
+    return {
+      session_id: sessionId,
+      created_at: createdAt.toISOString(),
+      summary: {
+        screening_risk_band: "mild",
+        message: "輕度認知風險（僅供篩檢參考，非診斷）",
+        needs_followup: true,
+      },
+      instrument_scores: {
+        AD8: {
+          score: 2,
+          max_score: 8,
+          screen_positive: true,
+        },
+        SPMSQ: {
+          errors: 3,
+          severity_band: "mild",
+        },
+        MMSE: {
+          score: 26,
+          max_score: 30,
+          severity_band: "mild",
+        },
+        MoCA: {
+          score: 24,
+          max_score: 30,
+          severity_band: "mild",
+        },
+      },
+      responses,
+      disclaimer: "本結果為研究/輔助篩檢用途，不可作為臨床診斷依據。",
+    };
+  }
+
+  function buildDemoGameEntry(createdAtIso) {
+    const base = parseDate(createdAtIso) || new Date();
+    const at = (offsetMinutes) => new Date(base.getTime() + offsetMinutes * 60000).toISOString();
+    return {
+      session_id: "demo",
+      updated_at: at(52),
+      logic: {
+        difficulty: "easy",
+        level_title: "分類推理",
+        correct: 11,
+        total: 12,
+        score: 88,
+        duration_sec: 42.6,
+        completed_at: at(18),
+      },
+      sequence: {
+        difficulty: "medium",
+        total_numbers: 12,
+        completed_count: 12,
+        clicks: 14,
+        errors: 2,
+        score: 84,
+        duration_sec: 21.4,
+        completed_at: at(24),
+      },
+      memory: {
+        difficulty: "easy",
+        pairs_total: 8,
+        pairs_matched: 8,
+        moves: 12,
+        score: 86,
+        duration_sec: 39.2,
+        completed_at: at(30),
+      },
+      reaction: {
+        difficulty: "medium",
+        hits: 14,
+        misses: 3,
+        score: 82,
+        duration_sec: 20,
+        completed_at: at(38),
+      },
+      focus: {
+        difficulty: "easy",
+        found: 5,
+        total: 6,
+        score: 83,
+        elapsed_sec: 58.7,
+        duration_sec: 58.7,
+        completed_at: at(46),
+      },
+    };
+  }
+
+  function seedDemoData(sessionId, options = {}) {
+    const { force = false, allowAnySession = false } = options;
+    if (!sessionId) {
+      return null;
+    }
+    if (!force && !allowAnySession && !shouldSeedDemoSession(sessionId)) {
+      return null;
+    }
+
+    const reportCache = loadReportCacheMap();
+    const existing = reportCache[sessionId] || null;
+    const shouldRefresh =
+      !existing ||
+      !Array.isArray(existing.responses) ||
+      existing.responses.length < 60 ||
+      !existing.instrument_scores ||
+      !existing.instrument_scores.MMSE ||
+      !existing.instrument_scores.MoCA;
+
+    const report = shouldRefresh ? buildDemoReport(sessionId) : existing;
+    if (shouldRefresh) {
+      reportCache[sessionId] = report;
+      saveReportCacheMap(reportCache);
+    }
+
+    const gameMap = loadGameResultsMap();
+    const existingGame = gameMap[sessionId] || null;
+    const needGameRefresh =
+      !existingGame ||
+      !existingGame.logic ||
+      !existingGame.sequence ||
+      !existingGame.memory ||
+      !existingGame.reaction ||
+      !existingGame.focus;
+
+    if (needGameRefresh) {
+      gameMap[sessionId] = {
+        ...buildDemoGameEntry(report.created_at),
+        session_id: sessionId,
+      };
+      saveJsonMap(GAME_RESULTS_KEY, gameMap);
+    }
+
+    return report;
+  }
+
+  function shouldSeedMockGameSession(sessionId) {
+    if (!sessionId) {
+      return false;
+    }
+    return /^(demo|mock)[-_]/i.test(String(sessionId));
+  }
+
+  function ensureMockGameEntry(sessionId, report, gameResultsMap) {
+    if (!shouldSeedMockGameSession(sessionId)) {
+      return null;
+    }
+
+    const map = gameResultsMap || loadGameResultsMap();
+    const existingGame = map[sessionId] || null;
+    const hasCompleteGame =
+      existingGame &&
+      existingGame.logic &&
+      existingGame.sequence &&
+      existingGame.memory &&
+      existingGame.reaction &&
+      existingGame.focus;
+
+    if (hasCompleteGame) {
+      return existingGame;
+    }
+
+    const createdAt = report && report.created_at ? report.created_at : new Date().toISOString();
+    const seeded = {
+      ...buildDemoGameEntry(createdAt),
+      session_id: sessionId,
+    };
+    map[sessionId] = seeded;
+    saveJsonMap(GAME_RESULTS_KEY, map);
+    return seeded;
+  }
   function setExportHint(message, isError = false) {
     if (!csvExportHintEl) {
       return;
@@ -408,6 +745,18 @@
       }
       return "";
     }
+    if (gameKey === "sequence") {
+      if (typeof payload.completed_count === "number" && typeof payload.total_numbers === "number" && payload.total_numbers > 0) {
+        return Number(((payload.completed_count / payload.total_numbers) * 100).toFixed(1));
+      }
+      return "";
+    }
+    if (gameKey === "memory") {
+      if (typeof payload.pairs_matched === "number" && typeof payload.pairs_total === "number" && payload.pairs_total > 0) {
+        return Number(((payload.pairs_matched / payload.pairs_total) * 100).toFixed(1));
+      }
+      return "";
+    }
     if (gameKey === "reaction") {
       if (typeof payload.hits === "number" && typeof payload.misses === "number") {
         const total = payload.hits + payload.misses;
@@ -431,6 +780,8 @@
 
     const specs = [
       { key: "logic", label: "邏輯：物件分類" },
+      { key: "sequence", label: "邏輯：數字順序" },
+      { key: "memory", label: "記憶：圖片配對" },
       { key: "reaction", label: "反應：打地鼠" },
       { key: "focus", label: "專注：找不同" },
     ];
@@ -801,7 +1152,7 @@ ${worksheetXmlList}
     gameScoresEl.innerHTML = "";
     const map = loadGameResultsMap();
     const entry = sessionId ? map[sessionId] : null;
-    if (!entry || (!entry.logic && !entry.reaction && !entry.focus)) {
+    if (!hasAnyGameResult(entry)) {
       const empty = document.createElement("p");
       empty.className = "muted";
       empty.textContent = "尚無遊戲記錄。";
@@ -818,6 +1169,26 @@ ${worksheetXmlList}
           `正確數 ${entry.logic.correct}/${entry.logic.total}`,
           `難度 ${difficultyText}｜${levelTitle}`,
           entry.logic.score,
+        ),
+      );
+    }
+    if (entry.sequence) {
+      gameScoresEl.appendChild(
+        createGameCard(
+          "邏輯：數字順序",
+          `完成 ${entry.sequence.completed_count || 0}/${entry.sequence.total_numbers || 9}`,
+          `錯誤 ${entry.sequence.errors || 0} 次｜耗時 ${entry.sequence.duration_sec || "--"} 秒`,
+          entry.sequence.score,
+        ),
+      );
+    }
+    if (entry.memory) {
+      gameScoresEl.appendChild(
+        createGameCard(
+          "記憶：圖片配對",
+          `配對 ${entry.memory.pairs_matched || 0}/${entry.memory.pairs_total || 8}`,
+          `翻牌 ${entry.memory.moves || 0} 次｜耗時 ${entry.memory.duration_sec || "--"} 秒`,
+          entry.memory.score,
         ),
       );
     }
@@ -916,6 +1287,12 @@ ${worksheetXmlList}
     if (gameEntry && gameEntry.logic && gameEntry.logic.completed_at) {
       candidates.push(gameEntry.logic.completed_at);
     }
+    if (gameEntry && gameEntry.sequence && gameEntry.sequence.completed_at) {
+      candidates.push(gameEntry.sequence.completed_at);
+    }
+    if (gameEntry && gameEntry.memory && gameEntry.memory.completed_at) {
+      candidates.push(gameEntry.memory.completed_at);
+    }
     if (gameEntry && gameEntry.reaction && gameEntry.reaction.completed_at) {
       candidates.push(gameEntry.reaction.completed_at);
     }
@@ -937,12 +1314,13 @@ ${worksheetXmlList}
     }, null);
   }
 
-  function buildRadarRecord(sessionId, report, gameEntry) {
+  function buildRadarRecord(sessionId, report, gameEntry, meta = null) {
     const metrics = {
       cognitive: calculateCognitiveScore(report),
-      logic: clampScore(gameEntry && gameEntry.logic ? gameEntry.logic.score : null),
+      logic: clampScore(resolveLogicMetric(gameEntry)),
       reaction: clampScore(gameEntry && gameEntry.reaction ? gameEntry.reaction.score : null),
       focus: clampScore(gameEntry && gameEntry.focus ? gameEntry.focus.score : null),
+      memory: clampScore(resolveMemoryMetric(gameEntry)),
     };
     const hasAny = DIMENSION_KEYS.some(
       (key) => typeof metrics[key] === "number",
@@ -955,8 +1333,15 @@ ${worksheetXmlList}
       : null;
     const inferredRiskBand = inferRiskBandFromCognitive(metrics.cognitive);
     const timestamp = resolveSessionTimestamp(report, gameEntry) || new Date();
+    const patientName =
+      meta && meta.patient_name
+        ? String(meta.patient_name)
+        : meta && meta.patient_id
+          ? String(meta.patient_id)
+          : sessionId;
     return {
       sessionId,
+      patientName,
       timestamp,
       dateKey: formatDateKey(timestamp),
       dateLabel: formatDateLabel(timestamp),
@@ -999,11 +1384,21 @@ ${worksheetXmlList}
       const sessionIds = Array.from(
         new Set(group.sessions.map((session) => session.sessionId).filter(Boolean)),
       );
+      const patientNames = Array.from(
+        new Set(group.sessions.map((session) => session.patientName).filter(Boolean)),
+      );
+      const nameLabel = !patientNames.length
+        ? "--"
+        : patientNames.length === 1
+          ? patientNames[0]
+          : `${patientNames[0]} (+${patientNames.length - 1})`;
       return {
         dateKey: group.dateKey,
         dateLabel: group.dateLabel,
         sessionCount: group.sessions.length,
         sessionIds,
+        patientNames,
+        nameLabel,
         riskBand: dateRiskBand,
         metrics,
         latestTimestamp: latest || new Date(),
@@ -1024,14 +1419,51 @@ ${worksheetXmlList}
     };
   }
 
+  function createValueCell(label, value) {
+    const cell = document.createElement("article");
+    cell.className = "date-radar-value";
+
+    const labelEl = document.createElement("p");
+    labelEl.textContent = label;
+    cell.appendChild(labelEl);
+
+    const valueEl = document.createElement("strong");
+    valueEl.textContent =
+      typeof value === "number" && Number.isFinite(value) ? String(value) : "--";
+    cell.appendChild(valueEl);
+
+    return cell;
+  }
+
+  function stripScreeningSuffix(text) {
+    if (!text) {
+      return "";
+    }
+    return String(text)
+      .replace(/[（(]\s*僅供篩檢參考\s*[,，]?\s*非診斷\s*[)）]/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function formatJudgementText(riskBand, message = "") {
+    const cleanMessage = stripScreeningSuffix(message);
+    if (cleanMessage) {
+      return cleanMessage;
+    }
+    const bandText = formatBandText(riskBand) || "--";
+    return `失智前兆初步判斷：${bandText}`;
+  }
+
   function drawRadar(canvas, metrics) {
     if (!canvas) {
       return;
     }
+
     const rect = canvas.getBoundingClientRect();
     const width = Math.max(260, Math.round(rect.width || 320));
     const height = Math.max(220, Math.round(rect.height || 260));
     const dpr = Math.max(1, window.devicePixelRatio || 1);
+
     canvas.width = width * dpr;
     canvas.height = height * dpr;
 
@@ -1039,6 +1471,7 @@ ${worksheetXmlList}
     if (!ctx) {
       return;
     }
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
@@ -1094,13 +1527,8 @@ ${worksheetXmlList}
     ctx.beginPath();
     values.forEach((value, index) => {
       const numericValue = typeof value === "number" ? value : 0;
-      const point = polygonPoint(
-        centerX,
-        centerY,
-        (radius * numericValue) / 100,
-        index,
-        total,
-      );
+      const ratio = Math.max(0, Math.min(100, numericValue)) / 100;
+      const point = polygonPoint(centerX, centerY, radius * ratio, index, total);
       if (index === 0) {
         ctx.moveTo(point.x, point.y);
       } else {
@@ -1108,54 +1536,43 @@ ${worksheetXmlList}
       }
     });
     ctx.closePath();
-    ctx.fillStyle = "rgba(37, 99, 235, 0.2)";
-    ctx.fill();
+    ctx.fillStyle = "rgba(37, 99, 235, 0.18)";
     ctx.strokeStyle = "#2563eb";
     ctx.lineWidth = 2;
+    ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "#1d4ed8";
     values.forEach((value, index) => {
       if (typeof value !== "number") {
         return;
       }
-      const point = polygonPoint(
-        centerX,
-        centerY,
-        (radius * value) / 100,
-        index,
-        total,
-      );
+      const ratio = Math.max(0, Math.min(100, value)) / 100;
+      const point = polygonPoint(centerX, centerY, radius * ratio, index, total);
       ctx.beginPath();
       ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#2563eb";
       ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     });
   }
 
-  function createValueCell(label, value) {
-    const cell = document.createElement("div");
-    cell.className = "date-radar-value";
-    const labelEl = document.createElement("p");
-    labelEl.textContent = label;
-    const valueEl = document.createElement("strong");
-    valueEl.textContent = typeof value === "number" ? String(value) : "--";
-    cell.appendChild(labelEl);
-    cell.appendChild(valueEl);
-    return cell;
-  }
-
-  function formatJudgementText(riskBand) {
-    const normalized = normalizeRiskBand(riskBand);
-    if (!normalized) {
-      return "失智前兆初步判斷：資料不足";
+  function formatDateTimeLabel(group) {
+    if (!group || !(group.latestTimestamp instanceof Date)) {
+      return group && group.dateLabel ? group.dateLabel : "--";
     }
-    return `失智前兆初步判斷：${formatBandText(normalized)}`;
+    const hh = String(group.latestTimestamp.getHours()).padStart(2, "0");
+    const mm = String(group.latestTimestamp.getMinutes()).padStart(2, "0");
+    const ss = String(group.latestTimestamp.getSeconds()).padStart(2, "0");
+    return `${group.dateLabel} ${hh}:${mm}:${ss}`;
   }
 
   function renderDateRadar(groups) {
     if (!dailyRadarListEl) {
       return;
     }
+
     dailyRadarListEl.innerHTML = "";
     if (!groups.length) {
       const empty = document.createElement("p");
@@ -1165,32 +1582,61 @@ ${worksheetXmlList}
       return;
     }
 
+    const tableHead = document.createElement("div");
+    tableHead.className = "date-radar-table-head";
+    ["姓名", "日期", "Summary", "詳細資訊"].forEach((label) => {
+      const headCell = document.createElement("p");
+      headCell.className = "date-radar-head-cell";
+      headCell.textContent = label;
+      tableHead.appendChild(headCell);
+    });
+    dailyRadarListEl.appendChild(tableHead);
+
     groups.forEach((group) => {
       const card = document.createElement("details");
-      card.className = "date-radar-card";
+      card.className = "date-radar-card date-radar-row-card";
+
       const summary = document.createElement("summary");
-      summary.className = "date-radar-toggle";
-      const summaryInfo = document.createElement("div");
-      const dateEl = document.createElement("p");
-      dateEl.className = "date-radar-date";
-      dateEl.textContent = group.dateLabel;
-      const judgement = document.createElement("p");
-      judgement.className = "date-radar-judgement";
-      judgement.textContent = formatJudgementText(group.riskBand);
-      summaryInfo.appendChild(dateEl);
-      summaryInfo.appendChild(judgement);
-      summary.appendChild(summaryInfo);
+      summary.className = "date-radar-toggle date-radar-row-toggle";
+
+      const sessionCell = document.createElement("p");
+      sessionCell.className = "date-radar-col date-radar-col-session";
+      sessionCell.textContent = group.nameLabel || "--";
+
+      const dateCell = document.createElement("p");
+      dateCell.className = "date-radar-col date-radar-col-date";
+      dateCell.textContent = formatDateTimeLabel(group);
+
+      const summaryCell = document.createElement("p");
+      summaryCell.className = "date-radar-col date-radar-col-summary";
+      summaryCell.textContent = formatJudgementText(group.riskBand, group.summaryMessage || "");
+
+      const actionCell = document.createElement("div");
+      actionCell.className = "date-radar-col date-radar-col-action";
+      const togglePill = document.createElement("span");
+      togglePill.className = "date-radar-toggle-pill";
+      togglePill.textContent = "展開";
+      actionCell.appendChild(togglePill);
+
+      summary.appendChild(sessionCell);
+      summary.appendChild(dateCell);
+      summary.appendChild(summaryCell);
+      summary.appendChild(actionCell);
 
       const body = document.createElement("div");
       body.className = "date-radar-body";
+
       const left = document.createElement("div");
       const head = document.createElement("div");
       head.className = "date-radar-head";
+
       const title = document.createElement("h3");
       title.className = "date-radar-title";
       title.textContent = "能力雷達圖";
+
       const headRight = document.createElement("div");
       headRight.className = "date-radar-head-right";
+
       const meta = document.createElement("p");
       meta.className = "date-radar-meta";
       meta.textContent = `Sessions: ${group.sessionCount}`;
@@ -1223,9 +1669,7 @@ ${worksheetXmlList}
       const valuesGrid = document.createElement("div");
       valuesGrid.className = "date-radar-values";
       DIMENSION_KEYS.forEach((key) => {
-        valuesGrid.appendChild(
-          createValueCell(DIMENSION_LABELS[key], group.metrics[key]),
-        );
+        valuesGrid.appendChild(createValueCell(DIMENSION_LABELS[key], group.metrics[key]));
       });
 
       body.appendChild(left);
@@ -1233,7 +1677,9 @@ ${worksheetXmlList}
       card.appendChild(summary);
       card.appendChild(body);
       dailyRadarListEl.appendChild(card);
+
       card.addEventListener("toggle", () => {
+        togglePill.textContent = card.open ? "收合" : "展開";
         if (card.open) {
           drawRadar(canvas, group.metrics);
         }
@@ -1241,21 +1687,41 @@ ${worksheetXmlList}
     });
   }
 
-  function getSessionIdsForTimeline(currentSessionId, gameResults, reportCache) {
+  function getSessionIdsForTimeline(
+    currentSessionId,
+    gameResults,
+    reportCache,
+    sessionDirectory,
+    isGlobalViewer,
+  ) {
+    if (Array.isArray(sessionDirectory) && sessionDirectory.length) {
+      return Array.from(
+        new Set(
+          sessionDirectory
+            .map((item) => item && item.session_id)
+            .filter(Boolean),
+        ),
+      );
+    }
+
     const ids = new Set();
     if (currentSessionId) {
       ids.add(currentSessionId);
     }
-    Object.keys(gameResults).forEach((id) => {
-      if (id) {
-        ids.add(id);
-      }
-    });
-    Object.keys(reportCache).forEach((id) => {
-      if (id) {
-        ids.add(id);
-      }
-    });
+
+    if (isGlobalViewer) {
+      Object.keys(gameResults).forEach((id) => {
+        if (id) {
+          ids.add(id);
+        }
+      });
+      Object.keys(reportCache).forEach((id) => {
+        if (id) {
+          ids.add(id);
+        }
+      });
+    }
+
     return Array.from(ids);
   }
 
@@ -1279,9 +1745,19 @@ ${worksheetXmlList}
     }
   }
 
-  async function buildTimelineGroups(currentSessionId, currentReport) {
+  async function buildTimelineGroups(currentSessionId, currentReport, options = {}) {
+    const { sessionDirectory = [], isGlobalViewer = false } = options;
     const gameResults = loadGameResultsMap();
     const reportCache = loadReportCacheMap();
+
+    const directoryMap = Object.create(null);
+    if (Array.isArray(sessionDirectory)) {
+      sessionDirectory.forEach((item) => {
+        if (item && item.session_id) {
+          directoryMap[item.session_id] = item;
+        }
+      });
+    }
 
     if (currentSessionId && currentReport) {
       reportCache[currentSessionId] = currentReport;
@@ -1292,6 +1768,8 @@ ${worksheetXmlList}
       currentSessionId,
       gameResults,
       reportCache,
+      sessionDirectory,
+      isGlobalViewer,
     );
     if (!sessionIds.length) {
       return [];
@@ -1301,7 +1779,7 @@ ${worksheetXmlList}
     let cacheUpdated = false;
 
     for (const sessionId of sessionIds) {
-      const gameEntry = gameResults[sessionId] || null;
+      let gameEntry = gameResults[sessionId] || null;
       let report = null;
 
       if (sessionId === currentSessionId && currentReport) {
@@ -1318,7 +1796,16 @@ ${worksheetXmlList}
         }
       }
 
-      const record = buildRadarRecord(sessionId, report, gameEntry);
+      if (!gameEntry) {
+        gameEntry = ensureMockGameEntry(sessionId, report, gameResults) || null;
+      }
+
+      const record = buildRadarRecord(
+        sessionId,
+        report,
+        gameEntry,
+        directoryMap[sessionId] || null,
+      );
       if (record) {
         records.push(record);
       }
@@ -1327,7 +1814,32 @@ ${worksheetXmlList}
     if (cacheUpdated) {
       saveReportCacheMap(reportCache);
     }
+
     return groupRadarByDate(records);
+  }
+
+  function clearSummaryPanel() {
+    applyRiskStyle("none");
+    if (riskBadgeEl) {
+      riskBadgeEl.textContent = "--";
+    }
+    if (summaryMessageEl) {
+      summaryMessageEl.textContent = "尚無可用報表資料";
+    }
+    if (needsFollowupEl) {
+      needsFollowupEl.textContent = "--";
+    }
+    if (avgVadEl) {
+      avgVadEl.textContent = "--";
+    }
+    if (avgWhisperEl) {
+      avgWhisperEl.textContent = "--";
+    }
+    if (accuracyRateEl) {
+      accuracyRateEl.textContent = "--";
+    }
+    renderInstrumentScores({});
+    renderResponses([]);
   }
 
   function applyReportToSummary(report) {
@@ -1358,39 +1870,104 @@ ${worksheetXmlList}
       return;
     }
 
-    setExportHint("展開日期卡片後，可下載該日期的 Excel（測試/遊戲）明細。");
+    setExportHint("展開歷史紀錄卡片後，可下載該日期的 Excel（測試/遊戲）明細。");
 
-    const sessionId = resolveSessionId();
-    currentExportSessionId = sessionId || null;
+    const viewerContext = resolveViewerContext();
+    const sessionDirectory = await fetchSessionDirectory(viewerContext);
+
+    const resolvedSessionId = resolveSessionId();
+    const latestSessionId = sessionDirectory.length > 0
+      ? sessionDirectory[0].session_id
+      : null;
+    const viewerDemoSessionId = shouldSeedDemoSession(viewerContext.viewerPatientId)
+      ? viewerContext.viewerPatientId
+      : null;
+    const reportSessionId = resolvedSessionId || latestSessionId || viewerDemoSessionId;
+    const shouldAutoDemo = !reportSessionId && sessionDirectory.length === 0 && !viewerContext.viewerPatientId;
+    const effectiveSessionId = reportSessionId || (shouldAutoDemo ? "demo-preview_v1" : null);
+
+    currentExportSessionId = effectiveSessionId || null;
+
+    const sessionLabel = resolvedSessionId
+      || viewerContext.viewerPatientId
+      || effectiveSessionId
+      || "--";
 
     if (sessionIdEl) {
-      sessionIdEl.textContent = sessionId || "--";
+      sessionIdEl.textContent = sessionLabel;
     }
-    renderGameScores(sessionId);
 
-    let currentReport = null;
-    if (!sessionId) {
-      setStatus("找不到 Session ID，已顯示歷史日期分析。");
-    } else {
+    if (shouldAutoDemo && effectiveSessionId) {
+      sessionStorage.setItem(REPORT_SESSION_KEY, effectiveSessionId);
+    }
+
+    const shouldUseDemoSeed = Boolean(
+      effectiveSessionId && (shouldAutoDemo || shouldSeedDemoSession(effectiveSessionId)),
+    );
+
+    const seededDemoReport = shouldUseDemoSeed
+      ? seedDemoData(effectiveSessionId, {
+          force: shouldAutoDemo,
+          allowAnySession: shouldAutoDemo,
+        })
+      : null;
+
+    let currentReport = seededDemoReport || null;
+    if (currentReport) {
+      applyReportToSummary(currentReport);
+      setStatus(
+        shouldAutoDemo
+          ? "未帶入 Session ID，已載入模擬完整資料。"
+          : "已載入模擬完整資料。可以直接檢視結果與下載明細。",
+      );
+    } else if (effectiveSessionId) {
       try {
-        currentReport = await fetchReport(sessionId);
+        currentReport = await fetchReport(effectiveSessionId);
         applyReportToSummary(currentReport);
+        const cache = loadReportCacheMap();
+        cache[effectiveSessionId] = currentReport;
+        saveReportCacheMap(cache);
         setStatus("報表載入完成。");
       } catch (error) {
         const cache = loadReportCacheMap();
-        if (cache[sessionId]) {
-          currentReport = cache[sessionId];
+        if (cache[effectiveSessionId]) {
+          currentReport = cache[effectiveSessionId];
           applyReportToSummary(currentReport);
           setStatus("報表載入失敗，已改用快取資料。");
+        } else if (shouldSeedDemoSession(effectiveSessionId)) {
+          const fallbackDemo = seedDemoData(effectiveSessionId, { force: true });
+          if (fallbackDemo) {
+            currentReport = fallbackDemo;
+            applyReportToSummary(currentReport);
+            setStatus("報表載入失敗，已改用模擬完整資料。");
+          } else {
+            clearSummaryPanel();
+            setStatus("報表載入失敗，已顯示可用的歷史資料。");
+          }
         } else {
+          clearSummaryPanel();
           setStatus("報表載入失敗，已顯示可用的歷史資料。");
         }
       }
+    } else {
+      clearSummaryPanel();
+      setStatus(sessionDirectory.length ? "已載入歷史紀錄。" : "尚無可用歷史資料。");
     }
 
     currentExportReport = currentReport;
 
-    const timelineGroups = await buildTimelineGroups(sessionId, currentReport);
+    if (effectiveSessionId) {
+      const gameMap = loadGameResultsMap();
+      ensureMockGameEntry(effectiveSessionId, currentReport, gameMap);
+      renderGameScores(effectiveSessionId);
+    } else {
+      renderGameScores(effectiveSessionId);
+    }
+
+    const timelineGroups = await buildTimelineGroups(effectiveSessionId, currentReport, {
+      sessionDirectory,
+      isGlobalViewer: viewerContext.isGlobalViewer,
+    });
     renderDateRadar(timelineGroups);
   }
 
@@ -1398,8 +1975,12 @@ ${worksheetXmlList}
     if (!dailyRadarListEl) {
       return;
     }
+
     const cards = Array.from(dailyRadarListEl.querySelectorAll(".date-radar-card"));
     cards.forEach((card) => {
+      if (!card.open) {
+        return;
+      }
       const canvas = card.querySelector(".date-radar-canvas");
       if (!canvas) {
         return;

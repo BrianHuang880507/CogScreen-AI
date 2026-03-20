@@ -204,7 +204,7 @@
   function renderProgress() {
     const entry = flow.getSessionGameResults(sessionId);
     if (doneEl) {
-      doneEl.textContent = `${flow.countCompletedGames(entry)}/${flow.GAME_KEYS.length}`;
+      doneEl.textContent = `${flow.countCompletedGames(entry)}/${Array.isArray(flow.REQUIRED_CATEGORIES) ? flow.REQUIRED_CATEGORIES.length : flow.GAME_KEYS.length}`;
     }
   }
 
@@ -277,7 +277,7 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("三個遊戲已完成，將前往結果分析。");
+      setStatus("四類能力遊戲已完成，將前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
       }, 1500);
@@ -524,18 +524,21 @@
       return;
     }
     hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
+
+    let activePointerId = null;
+
     const moveHammer = (event) => {
+      if (!event) {
+        return;
+      }
       const rect = arenaEl.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       hammerEl.style.setProperty("--hammer-x", `${x}px`);
       hammerEl.style.setProperty("--hammer-y", `${y}px`);
     };
-    arenaEl.addEventListener("pointermove", moveHammer);
-    arenaEl.addEventListener("pointerdown", () => {
-      triggerHammerSmash();
-    });
-    arenaEl.addEventListener("pointerleave", () => {
+
+    const resetHammerState = () => {
       const state = getState(hammerEl);
       if (state.cancelSwing) {
         state.cancelSwing();
@@ -545,6 +548,50 @@
       hammerResetTimer = null;
       hammerEl.classList.remove("is-smashing");
       hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
+      arenaEl.classList.remove("is-pointer-active");
+      if (
+        activePointerId !== null &&
+        typeof arenaEl.releasePointerCapture === "function" &&
+        arenaEl.hasPointerCapture(activePointerId)
+      ) {
+        arenaEl.releasePointerCapture(activePointerId);
+      }
+      activePointerId = null;
+    };
+
+    const handlePointerMove = (event) => {
+      if (activePointerId !== null && event.pointerId !== activePointerId) {
+        return;
+      }
+      moveHammer(event);
+      arenaEl.classList.add("is-pointer-active");
+    };
+
+    const handlePointerEnd = (event) => {
+      if (activePointerId !== null && event.pointerId !== activePointerId) {
+        return;
+      }
+      resetHammerState();
+    };
+
+    arenaEl.addEventListener("pointermove", handlePointerMove);
+
+    arenaEl.addEventListener("pointerdown", (event) => {
+      activePointerId = event.pointerId;
+      if (typeof arenaEl.setPointerCapture === "function") {
+        arenaEl.setPointerCapture(event.pointerId);
+      }
+      handlePointerMove(event);
+      triggerHammerSmash();
+    });
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("pointerup", handlePointerEnd, { passive: true });
+    window.addEventListener("pointercancel", handlePointerEnd, { passive: true });
+    arenaEl.addEventListener("pointerleave", () => {
+      if (activePointerId === null) {
+        arenaEl.classList.remove("is-pointer-active");
+      }
     });
   }
 

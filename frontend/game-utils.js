@@ -2,10 +2,23 @@
   const LOGIN_KEY = "isLoggedIn";
   const REPORT_SESSION_KEY = "latestReportSessionId";
   const GAME_RESULTS_KEY = "gameResultsBySession";
-  const GAME_KEYS = ["logic", "reaction", "focus"];
+
+  // Playable games.
+  const GAME_KEYS = ["logic", "sequence", "memory", "reaction", "focus"];
+
+  // Completion is category-based, not per playable game.
+  const REQUIRED_CATEGORIES = ["logic", "memory", "reaction", "focus"];
+  const CATEGORY_GAME_KEYS = {
+    logic: ["logic", "sequence"],
+    memory: ["memory"],
+    reaction: ["reaction"],
+    focus: ["focus"],
+  };
 
   const GAME_ROUTE_MAP = {
     logic: "/game-logic.html",
+    sequence: "/game-sequence.html",
+    memory: "/game-memory.html",
     reaction: "/game-reaction.html",
     focus: "/game-focus.html",
   };
@@ -41,23 +54,39 @@
     localStorage.setItem(GAME_RESULTS_KEY, JSON.stringify(map));
   }
 
-  function getSessionGameResults(sessionId) {
-    if (!sessionId) {
-      return {
-        session_id: null,
-        logic: null,
-        reaction: null,
-        focus: null,
-      };
-    }
-    const map = readResultsMap();
-    const existing = map[sessionId] || {};
+  function createEmptyEntry(sessionId) {
     return {
-      session_id: sessionId,
-      logic: existing.logic || null,
+      session_id: sessionId || null,
+      logic: null,
+      sequence: null,
+      memory: null,
+      reaction: null,
+      focus: null,
+    };
+  }
+
+  function normalizeEntry(sessionId, existing) {
+    const base = createEmptyEntry(sessionId);
+    if (!existing || typeof existing !== "object") {
+      return base;
+    }
+    return {
+      ...base,
+      updated_at: existing.updated_at || null,
+      logic: existing.logic || existing.logic_classify || null,
+      sequence: existing.sequence || existing.logic_sequence || null,
+      memory: existing.memory || existing.memory_match || null,
       reaction: existing.reaction || null,
       focus: existing.focus || null,
     };
+  }
+
+  function getSessionGameResults(sessionId) {
+    if (!sessionId) {
+      return createEmptyEntry(null);
+    }
+    const map = readResultsMap();
+    return normalizeEntry(sessionId, map[sessionId] || {});
   }
 
   function saveSessionGameResult(sessionId, gameKey, payload) {
@@ -65,27 +94,33 @@
       return;
     }
     const map = readResultsMap();
-    const previous = map[sessionId] || {};
+    const previous = normalizeEntry(sessionId, map[sessionId] || {});
     map[sessionId] = {
+      ...previous,
       session_id: sessionId,
       updated_at: new Date().toISOString(),
-      logic: previous.logic || null,
-      reaction: previous.reaction || null,
-      focus: previous.focus || null,
       [gameKey]: payload,
     };
     writeResultsMap(map);
+  }
+
+  function isCategoryCompleted(entry, category) {
+    const keys = CATEGORY_GAME_KEYS[category] || [];
+    if (!entry || !keys.length) {
+      return false;
+    }
+    return keys.some((key) => Boolean(entry[key]));
   }
 
   function countCompletedGames(entry) {
     if (!entry) {
       return 0;
     }
-    return GAME_KEYS.filter((key) => Boolean(entry[key])).length;
+    return REQUIRED_CATEGORIES.filter((category) => isCategoryCompleted(entry, category)).length;
   }
 
   function allGamesCompleted(entry) {
-    return countCompletedGames(entry) === GAME_KEYS.length;
+    return countCompletedGames(entry) === REQUIRED_CATEGORIES.length;
   }
 
   function withSession(path, sessionId) {
@@ -111,10 +146,13 @@
 
   window.GameFlow = {
     GAME_KEYS,
+    REQUIRED_CATEGORIES,
+    CATEGORY_GAME_KEYS,
     ensureAuthenticated,
     resolveSessionId,
     getSessionGameResults,
     saveSessionGameResult,
+    isCategoryCompleted,
     countCompletedGames,
     allGamesCompleted,
     buildGameUrl,
