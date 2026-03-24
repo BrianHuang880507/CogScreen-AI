@@ -21,6 +21,7 @@ class QuestionResponse(BaseModel):
     audio_url: str
     scoring_rule: dict[str, Any]
     image_url: str | None = None
+    choice_options: list[str] | None = None
     manual_confirm: bool | None = None
     recording_disabled: bool | None = None
     exclude_from_scoring: bool | None = None

@@ -726,6 +726,45 @@ a.ghost {
     min-height: 220px;
 }
 
+.choice-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.choice-button {
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    background: #ffffff;
+    color: #0f172a;
+    min-width: 140px;
+    height: 46px;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        border-color 0.15s ease,
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.choice-button:hover {
+    transform: translateY(-1px);
+    border-color: rgba(15, 23, 42, 0.35);
+}
+
+.choice-button.is-selected {
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+}
+
+.choice-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .manual-panel {
     display: flex;
     justify-content: flex-end;

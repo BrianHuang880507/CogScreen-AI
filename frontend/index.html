@@ -1,87 +1,122 @@
 ﻿<!doctype html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/jpeg" href="/static/images/ui/itri_CEL_A.jpg" />
-    <title>失智症統計分析平台</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260323" />
-  </head>
-  <body data-page="login">
-    <div class="app">
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-mark"></div>
-          <div class="brand-text">
-            <div class="brand-title">失智統計分析平台</div>
-            <div class="brand-sub">研究原型</div>
-          </div>
-        </div>
-        <nav class="nav">
-          <a class="nav-link" data-view="login" href="/">登入</a>
-          <a class="nav-link nav-link-test" data-view="test" href="/test.html">測試</a>
-        </nav>
-        <div class="nav-bottom">
-          <a class="nav-link" data-view="qa" href="/qa.html">Q&A</a>
-        </div>
-        <div class="side-footer">
-          <p>研究/輔助篩檢用途，非診斷。</p>
-        </div>
-      </aside>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link
+            rel="icon"
+            type="image/jpeg"
+            href="/static/images/ui/itri_CEL_A.jpg"
+        />
+        <title>失智症統計分析平台</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="styles.css?v=20260327" />
+    </head>
+    <body data-page="login">
+        <div class="app">
+            <aside class="sidebar">
+                <div class="brand">
+                    <div class="brand-mark"></div>
+                    <div class="brand-text">
+                        <div class="brand-title">失智統計分析平台</div>
+                        <div class="brand-sub">研究原型</div>
+                    </div>
+                </div>
+                <nav class="nav">
+                    <a class="nav-link" data-view="login" href="/">登入</a>
+                    <a
+                        class="nav-link nav-link-test"
+                        data-view="test"
+                        href="/test.html"
+                        >測試</a
+                    >
+                </nav>
+                <div class="nav-bottom">
+                    <a class="nav-link" data-view="qa" href="/qa.html">Q&A</a>
+                </div>
+                <div class="side-footer">
+                    <p>研究/輔助篩檢用途，非診斷。</p>
+                </div>
+            </aside>
 
-      <main class="content">
-        <section class="panel">
-          <h1>登入</h1>
-          <p class="muted">請輸入 Session ID 或姓名登入，或點選註冊建立新使用者。</p>
-          <div class="login-form">
-            <div id="loginFields" class="login-fields">
-              <label>
-                Session ID / 姓名
-                <input id="sessionIdInput" type="text" placeholder="請輸入 Session ID 或姓名" />
-              </label>
-              <p class="muted login-admin-hint">管理員查看全部紀錄帳號：<code>all-sessions-admin</code></p>
-            </div>
-            <div id="registerFields" class="register-fields hidden" hidden>
-              <label>
-                使用者名稱
-                <input id="userName" type="text" placeholder="例如：王小明" />
-              </label>
-              <label>
-                年齡
-                <input id="userAge" type="number" min="1" max="120" placeholder="例如：72" />
-              </label>
-              <label>
-                性別
-                <select id="userGender">
-                  <option value="">請選擇</option>
-                  <option value="male">男</option>
-                  <option value="female">女</option>
-                  <option value="other">其他</option>
-                </select>
-              </label>
-            </div>
-          </div>
-          <div class="login-actions">
-            <button id="loginButton" class="primary">登入</button>
-            <button id="loginAnonymous" class="ghost">匿名登入</button>
-            <button id="registerButton" class="ghost">註冊</button>
-            <button id="backToLogin" class="ghost hidden" hidden>返回登入</button>
-          </div>
-          <p id="sessionInfo" class="session-info hidden">Session ID：<span id="sessionIdText"></span></p>
-          <p class="disclaimer">
-            重要聲明：此系統為研究/輔助篩檢原型，不可用於失智症診斷，所有結果需由合格醫事人員解讀。
-          </p>
-        </section>
-      </main>
-    </div>
+            <main class="content">
+                <section class="panel">
+                    <h1>登入</h1>
+                    <p class="muted">
+                        請輸入 Session ID 或姓名登入，或點選註冊建立新使用者。
+                    </p>
+                    <div class="login-form">
+                        <div id="loginFields" class="login-fields">
+                            <label>
+                                Session ID / 姓名
+                                <input
+                                    id="sessionIdInput"
+                                    type="text"
+                                    placeholder="請輸入 Session ID 或姓名"
+                                />
+                            </label>
+                        </div>
+                        <div
+                            id="registerFields"
+                            class="register-fields hidden"
+                            hidden
+                        >
+                            <label>
+                                使用者名稱
+                                <input
+                                    id="userName"
+                                    type="text"
+                                    placeholder="例如：王小明"
+                                />
+                            </label>
+                            <label>
+                                年齡
+                                <input
+                                    id="userAge"
+                                    type="number"
+                                    min="1"
+                                    max="120"
+                                    placeholder="例如：72"
+                                />
+                            </label>
+                            <label>
+                                性別
+                                <select id="userGender">
+                                    <option value="">請選擇</option>
+                                    <option value="male">男</option>
+                                    <option value="female">女</option>
+                                    <option value="other">其他</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="login-actions">
+                        <button id="loginButton" class="primary">登入</button>
+                        <button id="loginAnonymous" class="ghost">
+                            匿名登入
+                        </button>
+                        <button id="registerButton" class="ghost">註冊</button>
+                        <button id="backToLogin" class="ghost hidden" hidden>
+                            返回登入
+                        </button>
+                    </div>
+                    <p id="sessionInfo" class="session-info hidden">
+                        Session ID：<span id="sessionIdText"></span>
+                    </p>
+                    <p class="disclaimer">
+                        重要聲明：此系統為研究/輔助篩檢原型，不可用於失智症診斷，所有結果需由合格醫事人員解讀。
+                    </p>
+                </section>
+            </main>
+        </div>
 
-    <button id="logoutBubble" class="logout-bubble hidden">登出</button>
-    <div id="toast" class="toast"></div>
-    <script src="app.js?v=20260323"></script>
-  </body>
+        <button id="logoutBubble" class="logout-bubble hidden">登出</button>
+        <div id="toast" class="toast"></div>
+        <script src="app.js?v=20260327"></script>
+    </body>
 </html>
-
-

@@ -22,6 +22,8 @@ const STR = {
   reportFail: "報表產生失敗",
   reportOk: "測驗完成",
   noResult: "尚無錄音結果",
+  choiceRequired: "請先選擇答案",
+  ttsUnsupported: "目前瀏覽器不支援念題功能",
   missingInstrument: "尚未選擇測驗",
   anonymousName: "匿名使用者",
   candidatePrefix: "考生：",
@@ -57,6 +59,7 @@ const loginActions = document.querySelector(".login-actions");
 const testCards = document.querySelectorAll(".test-card");
 const prevQuestionButton = document.getElementById("prevQuestion");
 const nextQuestionButton = document.getElementById("nextQuestion");
+const speakQuestionButton = document.getElementById("speakQuestion");
 const viewResultsButton = document.getElementById("viewResults");
 const questionBigText = document.getElementById("questionBigText");
 const questionAudio = document.getElementById("questionAudio");
@@ -73,6 +76,7 @@ const sendButton = document.getElementById("sendButton");
 const manualConfirmButton = document.getElementById("manualConfirm");
 const manualRejectButton = document.getElementById("manualReject");
 const manualPanel = document.getElementById("manualPanel");
+const choicePanel = document.getElementById("choicePanel");
 const questionMedia = document.getElementById("questionMedia");
 const questionImage = document.getElementById("questionImage");
 const questionImagePlaceholder = document.getElementById(
@@ -98,6 +102,7 @@ const questionHistory = [];
 const answerCache = new Map();
 let manualConfirmed = false;
 let recordingDisabled = false;
+let choiceSubmitting = false;
 
 const VAD_THRESHOLD = 0.02;
 const GAMES_URL = "/games.html";
@@ -823,6 +828,33 @@ function buildSilentWav(durationMs = 500, sampleRate = 16000) {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
+function speakQuestionText(text) {
+  const content = String(text || (currentQuestion && currentQuestion.text) || "").trim();
+  if (!content) {
+    return;
+  }
+  if (!("speechSynthesis" in window)) {
+    showToast(STR.ttsUnsupported);
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(content);
+  utterance.lang = "zh-TW";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  const voices = window.speechSynthesis.getVoices();
+  const preferredVoice =
+    voices.find((voice) => /^zh[-_](TW|HK|CN)$/i.test(String(voice.lang || ""))) ||
+    voices.find((voice) => String(voice.lang || "").toLowerCase().startsWith("zh"));
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+  }
+
+  window.speechSynthesis.speak(utterance);
+}
+
 function updateExamHeader() {
   if (sessionIdDisplay) {
     const storedId = sessionStorage.getItem(USER_SESSION_KEY);
@@ -862,11 +894,78 @@ function updateManualPanel(question) {
   }
 }
 
+function getChoiceOptions(question) {
+  if (!question || !Array.isArray(question.choice_options)) {
+    return [];
+  }
+  return question.choice_options
+    .map((option) => String(option || "").trim())
+    .filter((option) => Boolean(option));
+}
+
+function hasChoiceOptions(question) {
+  return getChoiceOptions(question).length > 0;
+}
+
+function setChoiceButtonsDisabled(disabled) {
+  if (!choicePanel) {
+    return;
+  }
+  const buttons = Array.from(choicePanel.querySelectorAll(".choice-button"));
+  buttons.forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
+function updateChoicePanel(question) {
+  if (!choicePanel) {
+    return;
+  }
+
+  const options = getChoiceOptions(question);
+  if (!options.length || !question) {
+    choicePanel.classList.add("hidden");
+    choicePanel.innerHTML = "";
+    return;
+  }
+
+  const questionId = question.question_id || question.id;
+  const selected = questionId ? String(answerCache.get(questionId) || "").trim() : "";
+
+  choicePanel.classList.remove("hidden");
+  choicePanel.innerHTML = "";
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "choice-button";
+    button.textContent = option;
+    if (selected && selected === option) {
+      button.classList.add("is-selected");
+    }
+    button.addEventListener("click", async () => {
+      if (choiceSubmitting) {
+        return;
+      }
+      await submitChoiceAnswer(option);
+    });
+    choicePanel.appendChild(button);
+  });
+
+  if (selected) {
+    setChoiceButtonsDisabled(true);
+    return;
+  }
+
+  setChoiceButtonsDisabled(choiceSubmitting);
+}
+
 function updateAnswerPanel(question) {
   if (!answerPanel) {
     return;
   }
-  const hidePanel = Boolean(question && question.recording_disabled);
+  const hidePanel = Boolean(
+    (question && question.recording_disabled) || hasChoiceOptions(question),
+  );
   answerPanel.classList.toggle("hidden", hidePanel);
 }
 
@@ -949,6 +1048,7 @@ function setCurrentQuestion(question, index) {
   setManualConfirmState(false);
   updateManualPanel(question);
   updateAnswerPanel(question);
+  updateChoicePanel(question);
   updateQuestionImage(question);
   if (questionIndex) {
     questionIndex.textContent = String(currentIndex);
@@ -957,16 +1057,30 @@ function setCurrentQuestion(question, index) {
     questionBigText.textContent = question.text;
   }
   if (questionAudio) {
-    questionAudio.src = question.audio_url;
+    if (question.audio_url) {
+      questionAudio.src = question.audio_url;
+    } else {
+      questionAudio.removeAttribute("src");
+      questionAudio.load();
+    }
   }
   if (resultEl) {
     const cached = answerCache.get(question.question_id);
     resultEl.textContent = cached || STR.noResult;
   }
+  if (speakQuestionButton) {
+    speakQuestionButton.disabled = !question.text;
+  }
   if (totalQuestions === null) {
     setProgressCounts(currentIndex, currentIndex);
   }
   setStatus(STR.waitAudio);
+
+  if (hasChoiceOptions(question)) {
+    window.setTimeout(() => {
+      speakQuestionText(question.text);
+    }, 120);
+  }
 }
 
 async function fetchNextQuestion() {
@@ -1039,6 +1153,10 @@ async function startExam(instrument) {
   if (manualPanel) {
     manualPanel.classList.add("hidden");
   }
+  if (choicePanel) {
+    choicePanel.classList.add("hidden");
+    choicePanel.innerHTML = "";
+  }
   if (answerPanel) {
     answerPanel.classList.remove("hidden");
   }
@@ -1046,6 +1164,10 @@ async function startExam(instrument) {
   setMicState(false);
   if (questionAudio) {
     questionAudio.removeAttribute("src");
+    questionAudio.load();
+  }
+  if (speakQuestionButton) {
+    speakQuestionButton.disabled = true;
   }
   if (resultEl) {
     resultEl.textContent = STR.noResult;
@@ -1147,6 +1269,27 @@ function stopRecording() {
   setStatus(STR.uploading);
 }
 
+async function submitChoiceAnswer(value) {
+  if (!sessionId || !currentQuestion) {
+    setStatus(STR.needQuestion);
+    return;
+  }
+  if (!hasChoiceOptions(currentQuestion)) {
+    return;
+  }
+
+  choiceSubmitting = true;
+  setChoiceButtonsDisabled(true);
+  setStatus(STR.uploading);
+
+  pendingNavigation = "next";
+  const silentBlob = buildSilentWav();
+  await uploadResponse(silentBlob, "choice.wav", null, String(value || "").trim());
+
+  choiceSubmitting = false;
+  setChoiceButtonsDisabled(false);
+}
+
 async function handleNavigation(direction) {
   if (!sessionId) {
     showToast(STR.pickTest);
@@ -1164,6 +1307,16 @@ async function handleNavigation(direction) {
     return;
   }
   if (direction === "next") {
+    if (hasChoiceOptions(currentQuestion)) {
+      const hasChoiceAnswer = answerCache.has(currentQuestion.question_id);
+      if (!hasChoiceAnswer) {
+        setStatus(STR.choiceRequired);
+        return;
+      }
+      await loadNextQuestion();
+      return;
+    }
+
     const hasAnswer = answerCache.has(currentQuestion.question_id);
     if (!hasAnswer) {
       pendingNavigation = "next";
@@ -1181,6 +1334,7 @@ async function uploadResponse(
   blob,
   filename = "response.webm",
   manualOverride = null,
+  answerText = null,
 ) {
   if (!sessionId || !currentQuestion) {
     setStatus(STR.needQuestion);
@@ -1207,6 +1361,11 @@ async function uploadResponse(
   } else if (manualConfirmed) {
     query.set("manual_confirmed", "true");
   }
+  const normalizedAnswerText =
+    typeof answerText === "string" ? answerText.trim() : "";
+  if (normalizedAnswerText) {
+    query.set("answer_text", normalizedAnswerText);
+  }
   const result = await apiPostForm(
     `/sessions/${sessionId}/responses?${query.toString()}`,
     formData,
@@ -1218,11 +1377,12 @@ async function uploadResponse(
   }
   const data = result.data || {};
   const transcript = data && data.transcript ? String(data.transcript) : "";
+  const finalTranscript = transcript || normalizedAnswerText;
   if (currentQuestion) {
-    answerCache.set(questionId, transcript || STR.noResult);
+    answerCache.set(questionId, finalTranscript || STR.noResult);
   }
   if (resultEl) {
-    resultEl.textContent = transcript || STR.noResult;
+    resultEl.textContent = finalTranscript || STR.noResult;
   }
   setManualConfirmState(false);
   setStatus(STR.answered);
@@ -1315,6 +1475,12 @@ if (currentPage === "exam") {
 }
 
 if (questionAudio) {
+  questionAudio.addEventListener("error", () => {
+    if (currentQuestion && currentQuestion.text) {
+      speakQuestionText(currentQuestion.text);
+    }
+  });
+
   questionAudio.addEventListener("ended", () => {
     if (recordingDisabled) {
       return;
@@ -1322,6 +1488,12 @@ if (questionAudio) {
     if (!mediaRecorder || mediaRecorder.state !== "recording") {
       beginRecording();
     }
+  });
+}
+
+if (speakQuestionButton) {
+  speakQuestionButton.addEventListener("click", () => {
+    speakQuestionText(currentQuestion && currentQuestion.text);
   });
 }
 

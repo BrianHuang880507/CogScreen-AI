@@ -76,6 +76,7 @@ async def submit_response(
     question_id: str,
     reaction_time_vad_ms: float | None = None,
     manual_confirmed: bool | None = None,
+    answer_text: str | None = None,
     audio: UploadFile = File(...),
 ) -> models.ResponseCreateResponse:
     response_id = str(uuid.uuid4())
@@ -100,10 +101,14 @@ async def submit_response(
     exclude_from_scoring = bool(question.get("exclude_from_scoring"))
     recording_disabled = bool(question.get("recording_disabled"))
 
-    transcript = None
+    transcript = str(answer_text).strip() if answer_text is not None else None
+    if transcript == "":
+        transcript = None
     transcription_payload: dict[str, Any] | None = None
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    if openai_api_key and not recording_disabled:
+    if transcript and not recording_disabled:
+        transcription_payload = None
+    elif openai_api_key and not recording_disabled:
         transcription_payload = transcribe_audio(
             str(audio_path),
             response_format="verbose_json",

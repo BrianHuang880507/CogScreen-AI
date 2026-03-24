@@ -53,5 +53,13 @@
     "id": "SPMSQ_Q10",
     "text": "請從 20 開始一直減 3，減下去。",
     "scoring_rule": {"type": "sequence_subtract", "start": 20, "step": -3, "count": 5, "min_correct": 3}
+  },
+  {
+    "id": "SPMSQ_Q11",
+    "text": "今天是否使用光療機?",
+    "choice_options": ["是", "否"],
+    "recording_disabled": true,
+    "exclude_from_scoring": true,
+    "scoring_rule": {"type": "exact", "expected": ["是", "否"]}
   }
 ]
