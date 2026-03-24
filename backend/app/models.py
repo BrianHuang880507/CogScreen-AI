@@ -16,6 +16,7 @@ class SessionCreateResponse(BaseModel):
 
 
 class QuestionResponse(BaseModel):
+    question_no: int
     question_id: str
     text: str
     audio_url: str

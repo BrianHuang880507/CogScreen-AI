@@ -48,25 +48,31 @@
       label: "簡單",
       pairs: 8,
       columns: 4,
-      scoreBase: 120,
-      timePenalty: 2.2,
-      mistakePenalty: 4.4,
+      timeTargetSec: 36,
+      timeLimitSec: 110,
+      guardMinMovesPerPair: 1.45,
+      guardMaxMovesPerPair: 3.6,
+      guardMinMultiplier: 0.45,
     },
     medium: {
       label: "中等",
       pairs: 10,
       columns: 5,
-      scoreBase: 132,
-      timePenalty: 2,
-      mistakePenalty: 4.9,
+      timeTargetSec: 52,
+      timeLimitSec: 130,
+      guardMinMovesPerPair: 1.5,
+      guardMaxMovesPerPair: 3.7,
+      guardMinMultiplier: 0.45,
     },
     hard: {
       label: "困難",
       pairs: 12,
       columns: 6,
-      scoreBase: 145,
-      timePenalty: 1.8,
-      mistakePenalty: 5.4,
+      timeTargetSec: 68,
+      timeLimitSec: 165,
+      guardMinMovesPerPair: 1.55,
+      guardMaxMovesPerPair: 3.8,
+      guardMinMultiplier: 0.45,
     },
   };
 
@@ -299,6 +305,43 @@
     }, 1700);
   }
 
+  function calculateMemoryScore(elapsedSec, movesCount, pairsTotal, config) {
+    const safePairs = Math.max(1, Number(pairsTotal) || 1);
+    const safeMoves = Math.max(1, Number(movesCount) || 1);
+    const safeElapsed = Math.max(0, Number(elapsedSec) || 0);
+
+    const targetSec = Math.max(1, Number(config.timeTargetSec) || 1);
+    const limitSec = Math.max(targetSec + 1, Number(config.timeLimitSec) || targetSec + 1);
+    const overTarget = Math.max(0, safeElapsed - targetSec);
+    const timeWindow = limitSec - targetSec;
+    const timeScore = Math.max(0, Math.round((1 - Math.min(overTarget / timeWindow, 1)) * 100));
+
+    const minMovesPerPair = Math.max(1, Number(config.guardMinMovesPerPair) || 1);
+    const maxMovesPerPair = Math.max(
+      minMovesPerPair + 0.01,
+      Number(config.guardMaxMovesPerPair) || (minMovesPerPair + 0.01),
+    );
+    const minMultiplier = Math.max(0.2, Math.min(1, Number(config.guardMinMultiplier) || 0.45));
+    const movesPerPair = safeMoves / safePairs;
+
+    let guardMultiplier = 1;
+    if (movesPerPair > minMovesPerPair) {
+      const guardRatio = Math.min(
+        (movesPerPair - minMovesPerPair) / (maxMovesPerPair - minMovesPerPair),
+        1,
+      );
+      guardMultiplier = 1 - guardRatio * (1 - minMultiplier);
+    }
+
+    const score = Math.max(0, Math.min(100, Math.round(timeScore * guardMultiplier)));
+    return {
+      score,
+      timeScore,
+      guardMultiplier: Number(guardMultiplier.toFixed(3)),
+      movesPerPair: Number(movesPerPair.toFixed(2)),
+    };
+  }
+
   function finishGame() {
     const config = getDifficultyConfig();
     running = false;
@@ -308,21 +351,12 @@
     const elapsed = startAtMs ? (Date.now() - startAtMs) / 1000 : 0;
     const matchedPairs = Math.floor(matched.size / 2);
     const wrongAttempts = Math.max(0, moves - matchedPairs);
-    const score = Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(
-          config.scoreBase -
-            elapsed * config.timePenalty -
-            wrongAttempts * config.mistakePenalty,
-        ),
-      ),
-    );
+    const scoreResult = calculateMemoryScore(elapsed, moves, config.pairs, config);
+    const score = scoreResult.score;
     const endedAt = new Date();
 
     if (resultEl) {
-      resultEl.textContent = `完成配對，用時 ${elapsed.toFixed(1)} 秒，翻牌 ${moves} 次，得分 ${score}。`;
+      resultEl.textContent = `完成配對，用時 ${elapsed.toFixed(1)} 秒、翻牌 ${moves} 次，得分 ${score}（時間分 ${scoreResult.timeScore}，moves/pair ${scoreResult.movesPerPair}）。`;
     }
 
     onComplete({
@@ -338,6 +372,10 @@
         ended_at: endedAt.toISOString(),
         columns: config.columns,
         wrong_attempts: wrongAttempts,
+        scoring_version: "v2_time_main_with_move_guard",
+        time_score: scoreResult.timeScore,
+        guard_multiplier: scoreResult.guardMultiplier,
+        moves_per_pair: scoreResult.movesPerPair,
         attempts: [...attemptLog],
       },
     });

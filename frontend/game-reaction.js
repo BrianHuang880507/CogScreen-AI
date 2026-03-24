@@ -549,13 +549,6 @@
       hammerEl.classList.remove("is-smashing");
       hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
       arenaEl.classList.remove("is-pointer-active");
-      if (
-        activePointerId !== null &&
-        typeof arenaEl.releasePointerCapture === "function" &&
-        arenaEl.hasPointerCapture(activePointerId)
-      ) {
-        arenaEl.releasePointerCapture(activePointerId);
-      }
       activePointerId = null;
     };
 
@@ -577,10 +570,10 @@
     arenaEl.addEventListener("pointermove", handlePointerMove);
 
     arenaEl.addEventListener("pointerdown", (event) => {
-      activePointerId = event.pointerId;
-      if (typeof arenaEl.setPointerCapture === "function") {
-        arenaEl.setPointerCapture(event.pointerId);
+      if (!running) {
+        return;
       }
+      activePointerId = event.pointerId;
       handlePointerMove(event);
       triggerHammerSmash();
     });
@@ -617,6 +610,11 @@
   }
 
   if (startButton) {
+    startButton.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      startGame();
+    });
     startButton.addEventListener("click", () => {
       startGame();
     });

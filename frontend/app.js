@@ -57,6 +57,7 @@ const loginForm = document.querySelector(".login-form");
 const loginActions = document.querySelector(".login-actions");
 
 const testCards = document.querySelectorAll(".test-card");
+const testSpmsqIncompleteListEl = document.getElementById("spmsqIncompleteList");
 const prevQuestionButton = document.getElementById("prevQuestion");
 const nextQuestionButton = document.getElementById("nextQuestion");
 const speakQuestionButton = document.getElementById("speakQuestion");
@@ -110,6 +111,9 @@ const RESULTS_URL = "/results.html";
 const REPORT_SESSION_KEY = "latestReportSessionId";
 const IMAGE_PLACEHOLDER_IDS = new Set();
 const SESSION_MAP_KEY = "instrumentSessionMap";
+const EXAM_ENTRY_MODE_KEY = "examEntryMode";
+const EXAM_ENTRY_MODE_NEW = "new";
+const EXAM_ENTRY_MODE_RESUME = "resume";
 const SIDEBAR_COLLAPSED_KEY = "sidebarCollapsed";
 const API_ROOT = "/api";
 const UI_ICON_BASE = "/static/images/ui";
@@ -217,6 +221,23 @@ function clearStoredSessionId(instrument) {
     delete map[instrument];
     saveSessionMap(map);
   }
+}
+
+function setExamEntryMode(mode) {
+  if (!mode) {
+    sessionStorage.removeItem(EXAM_ENTRY_MODE_KEY);
+    return;
+  }
+  sessionStorage.setItem(EXAM_ENTRY_MODE_KEY, mode);
+}
+
+function consumeExamEntryMode() {
+  const rawMode = sessionStorage.getItem(EXAM_ENTRY_MODE_KEY) || "";
+  sessionStorage.removeItem(EXAM_ENTRY_MODE_KEY);
+  if (rawMode === EXAM_ENTRY_MODE_NEW || rawMode === EXAM_ENTRY_MODE_RESUME) {
+    return rawMode;
+  }
+  return "";
 }
 
 function buildSessionPageUrl(path, reportSessionId) {
@@ -576,6 +597,199 @@ function requireTestAccess(target = "/") {
   return true;
 }
 
+function parseDateValue(value) {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
+}
+
+function formatDateTimeValue(value) {
+  const parsed = parseDateValue(value);
+  if (!parsed) {
+    return "--";
+  }
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hours = String(parsed.getHours()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+  const seconds = String(parsed.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function resolveTestViewerContext() {
+  return {
+    viewerPatientId: sessionStorage.getItem(USER_SESSION_KEY) || "",
+    isGlobalViewer: sessionStorage.getItem(USER_GLOBAL_VIEW_KEY) === "true",
+  };
+}
+
+async function fetchSessionDirectoryForTest(viewerContext) {
+  const params = new URLSearchParams();
+  if (!viewerContext.isGlobalViewer && viewerContext.viewerPatientId) {
+    params.set("patient_id", viewerContext.viewerPatientId);
+  }
+  params.set("limit", "400");
+
+  const query = params.toString();
+  const result = await apiGet(`/sessions${query ? `?${query}` : ""}`);
+  if (!result.ok || !Array.isArray(result.data)) {
+    return [];
+  }
+
+  return result.data
+    .filter((item) => item && item.session_id)
+    .map((item) => ({
+      sessionId: String(item.session_id),
+      createdAt: item.created_at || "",
+      instrument: item.instrument ? String(item.instrument) : "",
+    }));
+}
+
+function renderTestSpmsqIncompleteHistory(items) {
+  if (!testSpmsqIncompleteListEl) {
+    return;
+  }
+  testSpmsqIncompleteListEl.innerHTML = "";
+
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "date-radar-empty";
+    empty.textContent = "\u76ee\u524d\u6c92\u6709\u672a\u5b8c\u6210\u7684 SPMSQ \u6e2c\u9a57\u3002";
+    testSpmsqIncompleteListEl.appendChild(empty);
+    return;
+  }
+
+  items.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "spmsq-history-card";
+
+    const row = document.createElement("div");
+    row.className = "spmsq-history-row";
+
+    const sessionCell = document.createElement("p");
+    sessionCell.className = "spmsq-history-cell spmsq-history-session";
+    sessionCell.textContent = item.sessionId || "--";
+
+    const dateCell = document.createElement("p");
+    dateCell.className = "spmsq-history-cell spmsq-history-date";
+    dateCell.textContent = formatDateTimeValue(item.createdAt);
+
+    const progressCell = document.createElement("p");
+    progressCell.className = "spmsq-history-cell spmsq-history-progress";
+    progressCell.textContent = `\u5df2\u4f5c\u7b54 ${item.answered}/${item.totalQuestions}\uff08${item.completionPct}%\uff09`;
+
+    const statusCell = document.createElement("div");
+    statusCell.className = "spmsq-history-cell";
+    const resumeButton = document.createElement("button");
+    resumeButton.type = "button";
+    resumeButton.className = "ghost spmsq-history-action";
+    resumeButton.textContent = "\u7e7c\u7e8c\u4f5c\u7b54";
+    resumeButton.addEventListener("click", () => {
+      continueSpmsqSession(item.sessionId);
+    });
+    statusCell.appendChild(resumeButton);
+
+    row.appendChild(sessionCell);
+    row.appendChild(dateCell);
+    row.appendChild(progressCell);
+    row.appendChild(statusCell);
+    card.appendChild(row);
+    testSpmsqIncompleteListEl.appendChild(card);
+  });
+}
+
+function continueSpmsqSession(targetSessionId) {
+  const normalizedSessionId = String(targetSessionId || "").trim();
+  if (!normalizedSessionId) {
+    showToast(STR.tryLater);
+    return;
+  }
+  setStoredSessionId("spmsq", normalizedSessionId);
+  setExamEntryMode(EXAM_ENTRY_MODE_RESUME);
+  sessionStorage.setItem("instrument", "spmsq");
+  window.location.href = "/exam.html";
+}
+
+async function buildTestSpmsqIncompleteHistory(sessionDirectory) {
+  if (!Array.isArray(sessionDirectory) || !sessionDirectory.length) {
+    return [];
+  }
+
+  const items = (await Promise.all(
+    sessionDirectory.map(async (entry) => {
+      const sessionId = entry && entry.sessionId ? String(entry.sessionId) : "";
+      if (!sessionId) {
+        return null;
+      }
+
+      const entryInstrument = String(entry.instrument || "").trim().toUpperCase();
+      if (entryInstrument && entryInstrument !== "SPMSQ") {
+        return null;
+      }
+
+      const progressResult = await apiGet(
+        `/sessions/${encodeURIComponent(sessionId)}/progress`,
+      );
+      if (!progressResult.ok || !progressResult.data) {
+        return null;
+      }
+
+      const progress = progressResult.data || {};
+      const progressInstrument = String(progress.instrument || "")
+        .trim()
+        .toUpperCase();
+      if (progressInstrument && progressInstrument !== "SPMSQ") {
+        return null;
+      }
+      if (progress.is_complete) {
+        return null;
+      }
+
+      const answeredRaw = Number(progress.answered);
+      const totalRaw = Number(progress.total_questions);
+      const answered = Number.isFinite(answeredRaw) ? answeredRaw : 0;
+      const totalQuestions = Number.isFinite(totalRaw) ? totalRaw : 0;
+      const completionPct = totalQuestions > 0
+        ? Number(((answered / totalQuestions) * 100).toFixed(1))
+        : 0;
+
+      return {
+        sessionId,
+        createdAt: entry.createdAt || null,
+        answered,
+        totalQuestions,
+        completionPct,
+      };
+    }),
+  )).filter((item) => Boolean(item));
+
+  items.sort((a, b) => {
+    const aDate = parseDateValue(a.createdAt);
+    const bDate = parseDateValue(b.createdAt);
+    const aTime = aDate ? aDate.getTime() : 0;
+    const bTime = bDate ? bDate.getTime() : 0;
+    return bTime - aTime;
+  });
+
+  return items;
+}
+
+async function initTestSpmsqIncompleteHistory() {
+  if (!testSpmsqIncompleteListEl) {
+    return;
+  }
+  const viewerContext = resolveTestViewerContext();
+  const sessionDirectory = await fetchSessionDirectoryForTest(viewerContext);
+  const items = await buildTestSpmsqIncompleteHistory(sessionDirectory);
+  renderTestSpmsqIncompleteHistory(items);
+}
+
 function hydrateSessionInfo() {
   if (!sessionInfo || !sessionIdText) {
     return;
@@ -770,15 +984,19 @@ if (logoutBubble) {
   });
 }
 
-if (currentPage === "test" && testCards.length > 0) {
+if (currentPage === "test") {
   if (requireTestAccess("/")) {
-    testCards.forEach((card) => {
-      card.addEventListener("click", () => {
-        const instrument = card.dataset.instrument;
-        sessionStorage.setItem("instrument", instrument);
-        window.location.href = "/exam.html";
+    if (testCards.length > 0) {
+      testCards.forEach((card) => {
+        card.addEventListener("click", () => {
+          const instrument = card.dataset.instrument;
+          sessionStorage.setItem("instrument", instrument);
+          setExamEntryMode(EXAM_ENTRY_MODE_NEW);
+          window.location.href = "/exam.html";
+        });
       });
-    });
+    }
+    initTestSpmsqIncompleteHistory();
   }
 }
 
@@ -1042,7 +1260,10 @@ async function createSession() {
 function setCurrentQuestion(question, index) {
   currentQuestion = question;
   historyIndex = index;
-  currentIndex = index + 1;
+  const parsedQuestionNo = Number(question && question.question_no);
+  currentIndex = Number.isFinite(parsedQuestionNo) && parsedQuestionNo > 0
+    ? parsedQuestionNo
+    : index + 1;
   recordingDisabled = Boolean(question && question.recording_disabled);
   setMicState(false);
   setManualConfirmState(false);
@@ -1075,12 +1296,31 @@ function setCurrentQuestion(question, index) {
     setProgressCounts(currentIndex, currentIndex);
   }
   setStatus(STR.waitAudio);
+  autoReadCurrentQuestion(question);
+}
 
-  if (hasChoiceOptions(question)) {
-    window.setTimeout(() => {
-      speakQuestionText(question.text);
-    }, 120);
+function autoReadCurrentQuestion(question) {
+  const text = String((question && question.text) || "").trim();
+  if (!text) {
+    return;
   }
+  const fallbackSpeak = () => {
+    window.setTimeout(() => {
+      speakQuestionText(text);
+    }, 120);
+  };
+
+  if (questionAudio && question && question.audio_url) {
+    const playPromise = questionAudio.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        fallbackSpeak();
+      });
+    }
+    return;
+  }
+
+  fallbackSpeak();
 }
 
 async function fetchNextQuestion() {
@@ -1181,15 +1421,24 @@ async function startExam(instrument) {
   }
   setProgressCounts(0, totalQuestions || 0);
   setStatus(STR.starting);
-  const storedSessionId = getStoredSessionId(instrument);
+
+  const entryMode = consumeExamEntryMode();
+  const forceNewSession = entryMode === EXAM_ENTRY_MODE_NEW;
+  if (forceNewSession) {
+    clearStoredSessionId(instrument);
+  }
+
+  const storedSessionId = !forceNewSession ? getStoredSessionId(instrument) : null;
   if (storedSessionId) {
     sessionId = storedSessionId;
     const progress = await apiGet(`/sessions/${sessionId}/progress`);
-    if (progress.ok) {
+    const canResume = Boolean(progress.ok && progress.data && !progress.data.is_complete);
+    if (canResume) {
       await refreshProgressCounts();
       await loadNextQuestion();
       return;
     }
+    clearStoredSessionId(instrument);
     sessionId = null;
   }
   const created = await createSession();

@@ -29,6 +29,7 @@
   const gameScoresEl = document.getElementById("gameScores");
   const dailyRadarListEl = document.getElementById("dailyRadarList");
   const csvExportHintEl = document.getElementById("csvExportHint");
+  const spmsqIncompleteListEl = document.getElementById("spmsqIncompleteList");
 
   const riskTextMap = {
     none: "低風險",
@@ -562,6 +563,17 @@
     return date ? formatDateLabel(date) : "";
   }
 
+  function formatDateTime(value) {
+    const date = parseDate(value);
+    if (!date) {
+      return "--";
+    }
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    const ss = String(date.getSeconds()).padStart(2, "0");
+    return `${formatDateLabel(date)} ${hh}:${mm}:${ss}`;
+  }
+
   function toSafeString(value) {
     if (value === null || value === undefined) {
       return "";
@@ -652,11 +664,15 @@
 
     const rows = [];
     let correctCount = 0;
+    let judgedCount = 0;
 
     for (let index = 0; index < totalQuestions; index += 1) {
       const item = responses[index] || null;
       const isAnswered = Boolean(item);
-      const isCorrect = item && typeof item.is_correct === "boolean" ? item.is_correct : false;
+      const isCorrect = item && typeof item.is_correct === "boolean" ? item.is_correct : null;
+      if (typeof isCorrect === "boolean") {
+        judgedCount += 1;
+      }
       if (isCorrect) {
         correctCount += 1;
       }
@@ -689,7 +705,9 @@
     }
 
     const unansweredCount = Math.max(totalQuestions - answeredCount, 0);
-    const accuracy = answeredCount > 0 ? Number(((correctCount / answeredCount) * 100).toFixed(1)) : 0;
+    const accuracy = judgedCount > 0
+      ? Number(((correctCount / judgedCount) * 100).toFixed(1))
+      : "";
     rows.push({
       row_type: "summary",
       session_id: sessionId,
@@ -905,7 +923,7 @@ ${worksheetXmlList}
 </Workbook>`;
   }
 
-  async function downloadWorkbookForSessions(sessionIds, fileLabel = "") {
+  async function legacyDownloadWorkbookForSessions(sessionIds, fileLabel = "") {
     const normalizedSessionIds = Array.from(
       new Set((sessionIds || []).filter(Boolean)),
     );
@@ -1333,6 +1351,10 @@ ${worksheetXmlList}
       : null;
     const inferredRiskBand = inferRiskBandFromCognitive(metrics.cognitive);
     const timestamp = resolveSessionTimestamp(report, gameEntry) || new Date();
+    const summaryMessage =
+      report && report.summary && report.summary.message
+        ? String(report.summary.message)
+        : "";
     const patientName =
       meta && meta.patient_name
         ? String(meta.patient_name)
@@ -1346,62 +1368,32 @@ ${worksheetXmlList}
       dateKey: formatDateKey(timestamp),
       dateLabel: formatDateLabel(timestamp),
       riskBand: reportRiskBand || inferredRiskBand,
+      summaryMessage,
       metrics,
     };
   }
 
   function groupRadarByDate(records) {
-    const grouped = new Map();
-    records.forEach((record) => {
-      if (!grouped.has(record.dateKey)) {
-        grouped.set(record.dateKey, {
-          dateKey: record.dateKey,
-          dateLabel: record.dateLabel,
-          sessions: [],
-        });
-      }
-      grouped.get(record.dateKey).sessions.push(record);
-    });
-
-    const output = Array.from(grouped.values()).map((group) => {
-      const metrics = {};
-      DIMENSION_KEYS.forEach((key) => {
-        const values = group.sessions
-          .map((session) => session.metrics[key])
-          .filter((value) => typeof value === "number");
-        metrics[key] =
-          values.length > 0 ? Math.round(average(values) || 0) : null;
-      });
-      const latest = group.sessions.reduce((acc, item) => {
-        if (!acc) {
-          return item.timestamp;
-        }
-        return item.timestamp.getTime() > acc.getTime() ? item.timestamp : acc;
-      }, null);
-      const dateRiskBand = group.sessions.reduce((acc, session) => {
-        return mergeRiskBand(acc, session.riskBand);
-      }, null);
-      const sessionIds = Array.from(
-        new Set(group.sessions.map((session) => session.sessionId).filter(Boolean)),
-      );
-      const patientNames = Array.from(
-        new Set(group.sessions.map((session) => session.patientName).filter(Boolean)),
-      );
-      const nameLabel = !patientNames.length
-        ? "--"
-        : patientNames.length === 1
-          ? patientNames[0]
-          : `${patientNames[0]} (+${patientNames.length - 1})`;
+    const output = records.map((record) => {
       return {
-        dateKey: group.dateKey,
-        dateLabel: group.dateLabel,
-        sessionCount: group.sessions.length,
-        sessionIds,
-        patientNames,
-        nameLabel,
-        riskBand: dateRiskBand,
-        metrics,
-        latestTimestamp: latest || new Date(),
+        dateKey: record.dateKey,
+        dateLabel: record.dateLabel,
+        sessionCount: 1,
+        sessionIds: record.sessionId ? [record.sessionId] : [],
+        sessionTimeline: record.sessionId
+          ? [
+              {
+                sessionId: record.sessionId,
+                timestamp: record.timestamp.toISOString(),
+              },
+            ]
+          : [],
+        patientNames: record.patientName ? [record.patientName] : [],
+        nameLabel: record.patientName || "--",
+        riskBand: record.riskBand,
+        summaryMessage: record.summaryMessage || "",
+        metrics: record.metrics,
+        latestTimestamp: record.timestamp || new Date(),
       };
     });
 
@@ -1649,7 +1641,9 @@ ${worksheetXmlList}
       downloadButton.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
-        await downloadWorkbookForSessions(group.sessionIds || [], group.dateLabel);
+        await downloadWorkbookForSessions(group.sessionIds || [], group.dateLabel, {
+          sessionTimeline: group.sessionTimeline || [],
+        });
       });
 
       head.appendChild(title);
@@ -1685,6 +1679,100 @@ ${worksheetXmlList}
         }
       });
     });
+  }
+
+  function renderIncompleteSpmsqHistory(items) {
+    if (!spmsqIncompleteListEl) {
+      return;
+    }
+    spmsqIncompleteListEl.innerHTML = "";
+
+    if (!items.length) {
+      const empty = document.createElement("p");
+      empty.className = "date-radar-empty";
+      empty.textContent = "目前沒有未完成的 SPMSQ 測驗。";
+      spmsqIncompleteListEl.appendChild(empty);
+      return;
+    }
+
+    items.forEach((item) => {
+      const card = document.createElement("article");
+      card.className = "spmsq-history-card";
+
+      const row = document.createElement("div");
+      row.className = "spmsq-history-row";
+
+      const sessionCell = document.createElement("p");
+      sessionCell.className = "spmsq-history-cell spmsq-history-session";
+      sessionCell.textContent = item.sessionId || "--";
+
+      const dateCell = document.createElement("p");
+      dateCell.className = "spmsq-history-cell spmsq-history-date";
+      dateCell.textContent = formatDateTime(item.createdAt);
+
+      const progressCell = document.createElement("p");
+      progressCell.className = "spmsq-history-cell spmsq-history-progress";
+      progressCell.textContent = `已作答 ${item.answered}/${item.totalQuestions}（${item.completionPct}%）`;
+
+      const statusCell = document.createElement("div");
+      statusCell.className = "spmsq-history-cell";
+      const chip = document.createElement("span");
+      chip.className = "spmsq-history-chip";
+      chip.textContent = "未完成";
+      statusCell.appendChild(chip);
+
+      row.appendChild(sessionCell);
+      row.appendChild(dateCell);
+      row.appendChild(progressCell);
+      row.appendChild(statusCell);
+      card.appendChild(row);
+      spmsqIncompleteListEl.appendChild(card);
+    });
+  }
+
+  async function buildIncompleteSpmsqHistory(sessionDirectory) {
+    if (!Array.isArray(sessionDirectory) || !sessionDirectory.length) {
+      return [];
+    }
+
+    const items = (await Promise.all(
+      sessionDirectory.map(async (entry) => {
+        const sessionId = entry && entry.session_id ? String(entry.session_id) : "";
+        if (!sessionId) {
+          return null;
+        }
+
+        const progress = await fetchProgress(sessionId);
+        if (!progress || progress.is_complete) {
+          return null;
+        }
+
+        const answered = Number.isFinite(progress.answered) ? Number(progress.answered) : 0;
+        const totalQuestions = Number.isFinite(progress.total_questions)
+          ? Number(progress.total_questions)
+          : 0;
+        const completionPct = totalQuestions > 0
+          ? Number(((answered / totalQuestions) * 100).toFixed(1))
+          : 0;
+
+        return {
+          sessionId,
+          createdAt: entry.created_at || null,
+          answered,
+          totalQuestions,
+          completionPct,
+        };
+      }),
+    )).filter((item) => Boolean(item));
+
+    items.sort((a, b) => {
+      const aDate = parseDate(a.createdAt);
+      const bDate = parseDate(b.createdAt);
+      const aTime = aDate ? aDate.getTime() : 0;
+      const bTime = bDate ? bDate.getTime() : 0;
+      return bTime - aTime;
+    });
+    return items;
   }
 
   function getSessionIdsForTimeline(
@@ -1779,6 +1867,11 @@ ${worksheetXmlList}
     let cacheUpdated = false;
 
     for (const sessionId of sessionIds) {
+      const progress = await fetchProgress(sessionId);
+      if (!progress || !progress.is_complete) {
+        continue;
+      }
+
       let gameEntry = gameResults[sessionId] || null;
       let report = null;
 
@@ -1874,6 +1967,11 @@ ${worksheetXmlList}
 
     const viewerContext = resolveViewerContext();
     const sessionDirectory = await fetchSessionDirectory(viewerContext);
+    if (spmsqIncompleteListEl) {
+      const incompleteHistoryItems = await buildIncompleteSpmsqHistory(sessionDirectory);
+      renderIncompleteSpmsqHistory(incompleteHistoryItems);
+    }
+    setExportHint("預設匯出：當日最新且已完成的 1 筆 Session。");
 
     const resolvedSessionId = resolveSessionId();
     const latestSessionId = sessionDirectory.length > 0
@@ -1969,6 +2067,175 @@ ${worksheetXmlList}
       isGlobalViewer: viewerContext.isGlobalViewer,
     });
     renderDateRadar(timelineGroups);
+  }
+
+  async function downloadWorkbookForSessions(sessionIds, fileLabel = "", options = {}) {
+    const normalizedSessionIds = Array.from(new Set((sessionIds || []).filter(Boolean)));
+    if (!normalizedSessionIds.length) {
+      setExportHint("找不到可匯出的 Session。", true);
+      return;
+    }
+
+    const timeline = Array.isArray(options.sessionTimeline) ? options.sessionTimeline : [];
+    const timelineOrder = Array.from(
+      new Set(
+        timeline
+          .map((item) => (item && item.sessionId ? item.sessionId : null))
+          .filter(Boolean),
+      ),
+    );
+    const orderedSessionIds = [
+      ...timelineOrder.filter((id) => normalizedSessionIds.includes(id)),
+      ...normalizedSessionIds.filter((id) => !timelineOrder.includes(id)),
+    ];
+
+    const gameMap = loadGameResultsMap();
+    const reportCache = loadReportCacheMap();
+    if (currentExportSessionId && currentExportReport) {
+      reportCache[currentExportSessionId] = currentExportReport;
+    }
+
+    const progressCache = Object.create(null);
+    const getProgressForSession = async (sessionId) => {
+      if (sessionId in progressCache) {
+        return progressCache[sessionId];
+      }
+      const progress = await fetchProgress(sessionId);
+      progressCache[sessionId] = progress;
+      return progress;
+    };
+
+    let exportSessionIds = [...normalizedSessionIds];
+    let exportSelectionNote = "";
+
+    if (normalizedSessionIds.length > 1) {
+      let latestCompletedSessionId = null;
+      for (const sessionId of orderedSessionIds) {
+        const progress = await getProgressForSession(sessionId);
+        if (progress && progress.is_complete) {
+          latestCompletedSessionId = sessionId;
+          break;
+        }
+      }
+
+      if (latestCompletedSessionId) {
+        exportSessionIds = [latestCompletedSessionId];
+        exportSelectionNote = "已依預設匯出當日最新且已完成的 1 筆 Session。";
+      } else if (orderedSessionIds.length) {
+        exportSessionIds = [orderedSessionIds[0]];
+        exportSelectionNote = "當日無已完成 Session，已改匯出最新 1 筆 Session。";
+      }
+    }
+
+    const testRows = [];
+    const gameRows = [];
+    let cacheUpdated = false;
+
+    for (const sessionId of exportSessionIds) {
+      let report = reportCache[sessionId] || null;
+      if (!report) {
+        try {
+          report = await fetchReport(sessionId);
+          reportCache[sessionId] = report;
+          cacheUpdated = true;
+        } catch (error) {
+          report = null;
+        }
+      }
+
+      const progress = await getProgressForSession(sessionId);
+      testRows.push(...buildTestSheetRowsForSession(sessionId, report, progress));
+      gameRows.push(...buildGameSheetRowsForSession(sessionId, report, gameMap[sessionId] || null));
+    }
+
+    if (cacheUpdated) {
+      saveReportCacheMap(reportCache);
+    }
+
+    if (!testRows.length && !gameRows.length) {
+      setExportHint("找不到可匯出的測驗/遊戲資料。", true);
+      return;
+    }
+
+    const testHeaderOrder = [
+      "row_type",
+      "session_id",
+      "test_date",
+      "instrument",
+      "question_no",
+      "question_id",
+      "question_text",
+      "expected_answer",
+      "user_answer",
+      "is_answered",
+      "is_correct",
+      "vad_ms",
+      "whisper_ms",
+      "response_time_ms",
+      "response_process",
+      "summary_total",
+      "summary_answered",
+      "summary_unanswered",
+      "summary_correct",
+      "summary_accuracy_pct",
+      "summary_stage",
+      "summary_note",
+    ];
+
+    const gameHeaderOrder = [
+      "row_type",
+      "session_id",
+      "play_date",
+      "game_name",
+      "difficulty",
+      "score",
+      "duration_sec",
+      "accuracy_pct",
+      "notes",
+      "total_games",
+      "avg_score",
+      "total_duration_sec",
+    ];
+
+    const workbookXml = buildWorkbookXml([
+      {
+        name: "測試",
+        headers: collectSheetHeaders(testRows, testHeaderOrder),
+        rows: testRows,
+      },
+      {
+        name: "遊戲",
+        headers: collectSheetHeaders(gameRows, gameHeaderOrder),
+        rows: gameRows,
+      },
+    ]);
+
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+    const rawLabel = fileLabel || (exportSessionIds.length === 1 ? exportSessionIds[0] : "multi");
+    const safeLabel = String(rawLabel)
+      .trim()
+      .replace(/[^\w\u4e00-\u9fff-]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "sessions";
+    const fileName = `cogscreen_${safeLabel}_${stamp}.xls`;
+
+    const blob = new Blob([`\uFEFF${workbookXml}`], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    const hint = exportSelectionNote
+      ? `${exportSelectionNote} Excel 已下載：${fileName}`
+      : `Excel 已下載：${fileName}`;
+    setExportHint(hint);
   }
 
   window.addEventListener("resize", () => {

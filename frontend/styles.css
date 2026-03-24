@@ -297,6 +297,10 @@ a.ghost {
     gap: 18px;
 }
 
+.test-spmsq-history {
+    margin-top: 20px;
+}
+
 .test-card {
     border: none;
     padding: 0;
@@ -833,7 +837,9 @@ a.ghost {
 }
 
 .icon-button.is-recording {
-    background: rgba(255, 255, 255, 0.12);
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
 }
 
 .icon-button.send {
@@ -2772,6 +2778,78 @@ body[data-page^="game-"] .game-page-header .session-pill {
 
 @media (max-width: 640px) {
     .date-radar-score-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.spmsq-history-list {
+    display: grid;
+    gap: 12px;
+}
+
+.spmsq-history-card {
+    border-radius: 16px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #f8fafc;
+    padding: 14px 16px;
+}
+
+.spmsq-history-row {
+    display: grid;
+    grid-template-columns:
+        minmax(190px, 1fr) minmax(190px, 1fr) minmax(240px, 1.3fr)
+        minmax(96px, 0.5fr);
+    gap: 10px;
+    align-items: center;
+}
+
+.spmsq-history-cell {
+    margin: 0;
+    color: #0f172a;
+}
+
+.spmsq-history-session {
+    font-family: "Space Grotesk", "Noto Sans TC", sans-serif;
+    font-size: 18px;
+    word-break: break-all;
+}
+
+.spmsq-history-date {
+    font-size: 16px;
+}
+
+.spmsq-history-progress {
+    font-size: 15px;
+}
+
+.spmsq-history-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 82px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid #f59e0b;
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.spmsq-history-action {
+    display: inline-flex;
+    min-width: 98px;
+    justify-content: center;
+}
+
+@media (max-width: 1000px) {
+    .spmsq-history-row {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .spmsq-history-row {
         grid-template-columns: 1fr;
     }
 }

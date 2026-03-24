@@ -226,9 +226,11 @@ def build_report(session_id: str) -> dict[str, Any]:
         manual_value = row.get("manual_confirmed")
         if manual_value is not None:
             is_correct = bool(manual_value)
-        elif rule_score and "is_correct" in rule_score:
-            is_correct = bool(rule_score.get("is_correct"))
-        elif llm_judge and "is_correct" in llm_judge:
+        elif (
+            llm_judge
+            and "is_correct" in llm_judge
+            and isinstance(llm_judge.get("is_correct"), bool)
+        ):
             is_correct = bool(llm_judge.get("is_correct"))
         else:
             is_correct = None

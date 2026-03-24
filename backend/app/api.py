@@ -67,7 +67,7 @@ async def next_question(session_id: str) -> models.QuestionResponse:
     if index >= len(questions):
         raise HTTPException(status_code=404, detail="No more questions")
     question = questions[index]
-    return models.QuestionResponse(**question)
+    return models.QuestionResponse(question_no=index + 1, **question)
 
 
 @router.post("/sessions/{session_id}/responses", response_model=models.ResponseCreateResponse)
@@ -144,12 +144,23 @@ async def submit_response(
         prepared_rule, skip_scoring = scoring_rules.prepare_rule(question["scoring_rule"], context)
         if not skip_scoring:
             rule_score = scoring_rules.score_answer(transcript, prepared_rule)
-            if os.getenv("OPENAI_API_KEY"):
-                llm_judge = judge_answer(
-                    transcript,
-                    prepared_rule.get("expected", []),
-                    prepared_rule.get("type", "exact"),
-                )
+        if os.getenv("OPENAI_API_KEY"):
+            llm_expected = []
+            raw_expected = prepared_rule.get("expected", [])
+            if isinstance(raw_expected, list):
+                for item in raw_expected:
+                    text = str(item).strip()
+                    if not text:
+                        continue
+                    if text.startswith("__") and text.endswith("__"):
+                        continue
+                    llm_expected.append(text)
+            llm_judge = judge_answer(
+                transcript,
+                llm_expected,
+                prepared_rule.get("type", "exact"),
+                question_text=str(question.get("text") or ""),
+            )
 
     storage.save_response(
         response_id=response_id,
