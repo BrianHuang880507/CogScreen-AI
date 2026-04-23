@@ -38,11 +38,16 @@ def load_question_file(filename: str, instrument: str) -> list[dict[str, Any]]:
         if isinstance(item.get("scoring_rule"), dict):
             scoring_rule.update(item["scoring_rule"])
 
+        if "audio_url" in item:
+            audio_url = str(item.get("audio_url") or "")
+        else:
+            audio_url = f"/static/questions/{question_id}.mp3"
+
         questions.append(
             {
                 "question_id": str(question_id),
                 "text": str(text),
-                "audio_url": f"/static/questions/{question_id}.mp3",
+                "audio_url": audio_url,
                 "scoring_rule": scoring_rule,
                 "image_url": image_url,
                 "choice_options": choice_options,

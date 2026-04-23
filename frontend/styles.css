@@ -2853,3 +2853,1154 @@ body[data-page^="game-"] .game-page-header .session-pill {
         grid-template-columns: 1fr;
     }
 }
+
+/* ===== Senior-friendly game demo refinements 2026-04-22 ===== */
+body[data-page^="game-"] {
+    background: #e7edf5;
+}
+
+body[data-page^="game-"] .sidebar {
+    display: none;
+}
+
+body[data-page^="game-"] .app,
+body[data-page^="game-"] .content {
+    min-height: 100vh;
+}
+
+body[data-page^="game-"] .content {
+    position: relative;
+    width: 100%;
+    padding: 0;
+    background: #e7edf5;
+    box-shadow: none;
+}
+
+body[data-page^="game-"] .game-page-header {
+    position: absolute;
+    top: 14px;
+    left: 20px;
+    right: 20px;
+    z-index: 20;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+body[data-page^="game-"] .game-page-header h1 {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    margin: 0;
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #0f172a;
+    font-size: 32px;
+    font-weight: 800;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
+body[data-page^="game-"] .game-page-header .muted {
+    display: none;
+}
+
+body[data-page^="game-"] .session-pill {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+body[data-page^="game-"] .game-summary-panel {
+    position: absolute;
+    top: 78px;
+    left: 20px;
+    right: 20px;
+    z-index: 19;
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto minmax(190px, auto);
+    align-items: center;
+    gap: 16px;
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(8px);
+}
+
+body[data-page^="game-"] .game-status-line,
+body[data-page^="game-"] .game-progress,
+body[data-page^="game-"] .game-result,
+body[data-page^="game-"] .game-feedback,
+body[data-page^="game-"] .memory-instruction,
+body[data-page^="game-"] .sequence-instruction,
+body[data-page^="game-"] .sequence-next,
+body[data-page^="game-"] .classification-help,
+body[data-page^="game-"] .focus-board-hint {
+    font-size: 22px;
+    line-height: 1.45;
+}
+
+body[data-page^="game-"] .difficulty-picker {
+    gap: 10px;
+}
+
+body[data-page^="game-"] .difficulty-button,
+body[data-page^="game-"] .ghost,
+body[data-page^="game-"] .primary {
+    min-height: 52px;
+    min-width: 104px;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+body[data-page^="game-"] .difficulty-button {
+    background: #ffffff;
+}
+
+body[data-page^="game-"] .difficulty-button.is-active {
+    background: #1d4ed8;
+    color: #ffffff;
+    border-color: #1d4ed8;
+    box-shadow: none;
+}
+
+body[data-page^="game-"] .difficulty-hint {
+    max-width: 260px;
+    font-size: 18px;
+    line-height: 1.35;
+}
+
+body[data-page^="game-"] .game-summary-meta-right {
+    justify-items: end;
+}
+
+body[data-page^="game-"] .game-panel {
+    min-height: 100vh;
+    padding: 154px 28px 28px;
+    border: none;
+    border-radius: 0;
+    background: #e7edf5;
+    box-shadow: none;
+    gap: 18px;
+}
+
+body[data-page^="game-"] .game-panel-head h2 {
+    font-size: 30px;
+}
+
+.game-points-chip {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 800;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.22);
+}
+
+.game-points-chip strong {
+    color: #facc15;
+    font-size: 24px;
+}
+
+.reward-panel {
+    margin: 0 0 24px;
+    border-radius: 8px;
+}
+
+.reward-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 16px;
+}
+
+.reward-panel-head h2 {
+    margin-bottom: 4px;
+}
+
+.reward-balance {
+    min-width: 130px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #ffffff;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.reward-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.reward-item {
+    display: grid;
+    gap: 12px;
+    align-content: space-between;
+    min-height: 190px;
+    padding: 16px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.reward-item h3 {
+    margin-bottom: 6px;
+    font-size: 22px;
+}
+
+.reward-item p {
+    color: #475569;
+    font-size: 16px;
+}
+
+.reward-owned {
+    display: inline-flex;
+    color: #0f766e;
+    font-weight: 800;
+}
+
+.reward-redeem-button {
+    min-height: 48px;
+    border: none;
+    border-radius: 8px;
+    background: #1d4ed8;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.reward-redeem-button:disabled {
+    background: #cbd5e1;
+    color: #475569;
+    cursor: default;
+}
+
+.reward-feedback {
+    min-height: 28px;
+    margin: 14px 0 0;
+    color: #166534;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.reward-feedback.is-error {
+    color: #b91c1c;
+}
+
+body[data-page="game-reaction"] #reactionSpeedHint {
+    display: inline-flex;
+}
+
+body[data-page="game-reaction"] .whack-stats,
+body[data-page="game-memory"] .memory-meta,
+body[data-page="game-sequence"] .sequence-meta {
+    gap: 18px;
+    font-size: 24px;
+}
+
+body[data-page="game-reaction"] .whack-arena {
+    flex: 1;
+    min-height: 620px;
+    padding: 24px;
+    border-radius: 8px;
+}
+
+body[data-page="game-reaction"] .whack-grid {
+    max-width: 1120px;
+    margin: 0 auto;
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    gap: 24px;
+}
+
+body[data-page="game-reaction"] .whack-hole {
+    height: 180px;
+    border-radius: 8px;
+}
+
+body[data-page="game-reaction"] .hole-mouth,
+body[data-page="game-reaction"] .mole-sprite {
+    width: min(136px, 80%);
+}
+
+.whack-hole.is-cue::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    width: 72%;
+    height: 42%;
+    border: 6px solid #facc15;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow:
+        0 0 0 8px rgba(250, 204, 21, 0.24),
+        0 16px 28px rgba(120, 53, 15, 0.24);
+    animation: mole-cue-pulse 0.9s ease-in-out infinite alternate;
+    z-index: 0;
+}
+
+@keyframes mole-cue-pulse {
+    from {
+        opacity: 0.7;
+        transform: translateX(-50%) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.05);
+    }
+}
+
+body[data-page="game-reaction"] .mole-sprite {
+    transition:
+        transform 0.32s ease,
+        opacity 0.24s ease;
+}
+
+body[data-page="game-reaction"] .whack-hole.is-active .mole-base {
+    transform: translate(-50%, 22%);
+}
+
+body[data-page="game-memory"] .memory-board-wrap,
+body[data-page="game-sequence"] .sequence-board-wrap {
+    border-radius: 8px;
+    padding: 20px;
+}
+
+body[data-page="game-memory"] .memory-board {
+    grid-template-columns: repeat(var(--memory-columns, 3), minmax(104px, 138px));
+    gap: 16px;
+}
+
+body[data-page="game-memory"] .memory-card {
+    max-width: none;
+    min-height: 104px;
+    border-radius: 8px;
+    font-size: 42px;
+}
+
+body[data-page="game-memory"] .memory-card-front,
+body[data-page="game-memory"] .memory-card-back {
+    font-size: 42px;
+}
+
+body[data-page="game-sequence"] .sequence-board {
+    grid-template-columns: repeat(var(--sequence-columns, 3), minmax(112px, 150px));
+    gap: 18px;
+}
+
+body[data-page="game-sequence"] .sequence-tile {
+    min-height: 112px;
+    border-radius: 8px;
+    font-size: 44px;
+}
+
+body[data-page="game-focus"] .focus-board {
+    width: min(100%, 1280px);
+    border-radius: 8px;
+}
+
+body[data-page="game-focus"] .focus-marker {
+    border-width: 5px;
+}
+
+body[data-page="game-logic"] .classification-item {
+    min-width: 138px;
+    border-radius: 8px;
+}
+
+body[data-page="game-logic"] .classification-item-media {
+    height: 132px;
+}
+
+body[data-page="game-logic"] .classification-zone-body {
+    min-height: 300px;
+    border-radius: 8px;
+}
+
+body[data-page="game-logic"] .classification-zone-label {
+    border-radius: 8px;
+    font-size: 22px;
+}
+
+@media (max-width: 980px) {
+    body[data-page^="game-"] .game-page-header,
+    body[data-page^="game-"] .game-summary-panel {
+        left: 12px;
+        right: 12px;
+    }
+
+    body[data-page^="game-"] .game-summary-panel {
+        top: 72px;
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    body[data-page^="game-"] .game-summary-meta-right {
+        justify-items: start;
+        text-align: left;
+    }
+
+    body[data-page^="game-"] .game-panel {
+        padding: 250px 14px 80px;
+    }
+
+    body[data-page="game-reaction"] .whack-arena {
+        min-height: 520px;
+    }
+
+    body[data-page="game-reaction"] .whack-grid {
+        gap: 14px;
+        grid-template-columns: repeat(3, minmax(90px, 1fr));
+    }
+
+    body[data-page="game-reaction"] .whack-hole {
+        height: 132px;
+    }
+
+    body[data-page="game-memory"] .memory-board {
+        grid-template-columns: repeat(var(--memory-columns, 3), minmax(74px, 1fr));
+    }
+
+    body[data-page="game-sequence"] .sequence-board {
+        grid-template-columns: repeat(var(--sequence-columns, 3), minmax(78px, 1fr));
+    }
+
+    .reward-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    body[data-page^="game-"] .game-page-header {
+        position: static;
+        padding: 12px;
+    }
+
+    body[data-page^="game-"] .game-page-header h1 {
+        font-size: 28px;
+    }
+
+    body[data-page^="game-"] .session-pill {
+        display: none;
+    }
+
+    body[data-page^="game-"] .game-summary-panel {
+        position: static;
+        margin: 0 12px 12px;
+    }
+
+    body[data-page^="game-"] .game-panel {
+        min-height: auto;
+        padding: 12px 12px 84px;
+    }
+
+    body[data-page^="game-"] .game-status-line,
+    body[data-page^="game-"] .game-progress,
+    body[data-page^="game-"] .game-result,
+    body[data-page^="game-"] .game-feedback,
+    body[data-page^="game-"] .memory-instruction,
+    body[data-page^="game-"] .sequence-instruction,
+    body[data-page^="game-"] .sequence-next,
+    body[data-page^="game-"] .classification-help,
+    body[data-page^="game-"] .focus-board-hint {
+        font-size: 19px;
+    }
+
+    body[data-page="game-reaction"] .whack-arena {
+        min-height: 420px;
+        padding: 12px;
+    }
+
+    body[data-page="game-reaction"] .whack-hole {
+        height: 106px;
+    }
+
+    body[data-page="game-memory"] .memory-board,
+    body[data-page="game-sequence"] .sequence-board {
+        gap: 10px;
+    }
+
+    body[data-page="game-memory"] .memory-card,
+    body[data-page="game-sequence"] .sequence-tile {
+        min-height: 76px;
+        font-size: 34px;
+    }
+
+    .game-points-chip {
+        right: 12px;
+        bottom: 12px;
+    }
+}
+
+/* ===== Game layout revision 2026-04-23: keep sidebar + top bar + compact HUD ===== */
+body[data-page^="game-"] {
+    background: #101832;
+}
+
+body[data-page^="game-"] .app {
+    display: flex;
+    min-height: 100vh;
+}
+
+body[data-page^="game-"] .sidebar {
+    display: flex;
+    flex: 0 0 240px;
+    width: 240px;
+}
+
+body[data-page^="game-"] .content.game-content {
+    flex: 1;
+    min-width: 0;
+    min-height: 100vh;
+    padding: 0;
+    background: #eef2f7;
+    box-shadow: none;
+}
+
+body[data-page^="game-"] .game-page-header {
+    position: relative;
+    inset: auto;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: minmax(132px, 180px) minmax(280px, 1fr) minmax(140px, 260px);
+    align-items: center;
+    gap: 12px;
+    height: 72px;
+    margin: 0;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 0;
+    background: #111a3a;
+    color: #ffffff;
+    box-shadow: 0 2px 0 rgba(255, 255, 255, 0.28);
+}
+
+body[data-page^="game-"] .game-page-header h1 {
+    display: block;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #ffffff;
+    text-align: center;
+    font-size: 34px;
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: 0;
+    box-shadow: none;
+}
+
+body[data-page^="game-"] .game-topbar-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-height: 46px;
+    padding: 0 16px;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+body[data-page^="game-"] .session-pill {
+    justify-self: end;
+    max-width: 250px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    box-shadow: none;
+}
+
+body[data-page^="game-"] .game-summary-panel,
+body[data-page^="game-"] .difficulty-picker,
+body[data-page^="game-"] .game-progress-hidden,
+body[data-page^="game-"] .game-status-hidden,
+body[data-page^="game-"] .game-result-hidden {
+    display: none !important;
+}
+
+body[data-page^="game-"] .game-panel {
+    position: relative;
+    min-height: calc(100vh - 72px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #eef2f7;
+    box-shadow: none;
+    overflow: auto;
+}
+
+body[data-page^="game-"] .game-hud {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    z-index: 25;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    max-width: min(430px, calc(100% - 40px));
+    pointer-events: none;
+}
+
+body[data-page^="game-"] .game-hud-item {
+    min-height: 58px;
+    padding: 10px 18px;
+    border: 3px solid rgba(15, 23, 42, 0.22);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #0f172a;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 900;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+}
+
+body[data-page="game-focus"] .focus-board-wrap {
+    min-height: calc(100vh - 72px);
+    display: grid;
+    place-items: stretch;
+    padding: 0;
+}
+
+body[data-page="game-focus"] .focus-board {
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    border: 2px solid #e7a5bb;
+    border-radius: 0;
+    background: #111827;
+}
+
+body[data-page="game-focus"] .focus-image {
+    width: 100%;
+    min-height: 0;
+    height: auto;
+    object-fit: initial;
+}
+
+body[data-page="game-focus"] .focus-marker {
+    border-width: 5px;
+}
+
+body[data-page="game-reaction"] .whack-arena {
+    min-height: calc(100vh - 72px);
+    height: calc(100vh - 72px);
+    padding: 86px 30px 30px;
+    border: 0;
+    border-radius: 0;
+}
+
+body[data-page="game-reaction"] .whack-grid {
+    max-width: 1040px;
+    height: 100%;
+    margin: 0 auto;
+    align-content: center;
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    gap: 22px;
+}
+
+body[data-page="game-reaction"] .whack-hole {
+    height: min(21vh, 190px);
+    min-height: 132px;
+}
+
+body[data-page="game-memory"] .memory-panel,
+body[data-page="game-sequence"] .sequence-panel {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    padding: 96px 28px 34px;
+}
+
+body[data-page="game-memory"] .memory-board-wrap,
+body[data-page="game-sequence"] .sequence-board-wrap {
+    width: min(100%, 980px);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 0;
+}
+
+body[data-page="game-memory"] .memory-board {
+    grid-template-columns: repeat(var(--memory-columns, 3), minmax(120px, 160px));
+    justify-content: center;
+    gap: 18px;
+}
+
+body[data-page="game-memory"] .memory-card {
+    max-width: none;
+    min-height: 120px;
+    border-width: 3px;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+body[data-page="game-memory"] .memory-card-front,
+body[data-page="game-memory"] .memory-card-back {
+    font-size: 46px;
+}
+
+body[data-page="game-sequence"] .sequence-play-instruction {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 20px;
+    text-align: center;
+}
+
+body[data-page="game-sequence"] .sequence-instruction,
+body[data-page="game-sequence"] .sequence-next {
+    margin: 0;
+    color: #0f172a;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+body[data-page="game-sequence"] .sequence-next strong {
+    color: #dc2626;
+    font-size: 48px;
+}
+
+body[data-page="game-sequence"] .sequence-board {
+    grid-template-columns: repeat(var(--sequence-columns, 3), minmax(126px, 166px));
+    justify-content: center;
+    gap: 18px;
+}
+
+body[data-page="game-sequence"] .sequence-tile {
+    min-height: 126px;
+    border-radius: 8px;
+    font-size: 48px;
+}
+
+body[data-page="game-logic"] .classification-game-panel {
+    padding: 96px 28px 34px;
+}
+
+body[data-page="game-logic"] .logic-stage-title {
+    margin: 0 0 18px;
+    padding-right: 260px;
+}
+
+body[data-page="game-logic"] .logic-stage-title h2 {
+    font-size: 30px;
+}
+
+body[data-page="game-logic"] .classification-item {
+    min-width: 138px;
+    border-radius: 8px;
+}
+
+body[data-page="game-logic"] .classification-item-media {
+    height: 132px;
+}
+
+body[data-page="game-logic"] .classification-zone-body {
+    min-height: 292px;
+    border-radius: 8px;
+}
+
+body[data-page="game-logic"] .classification-zone-label {
+    border-radius: 8px;
+    font-size: 22px;
+}
+
+body[data-page="game-logic"] .logic-reset-floating {
+    position: absolute;
+    left: 28px;
+    bottom: 24px;
+    z-index: 20;
+}
+
+@media (max-width: 1080px) {
+    body[data-page^="game-"] .sidebar {
+        flex-basis: 84px;
+        width: 84px;
+    }
+
+    body[data-page^="game-"] .game-page-header {
+        grid-template-columns: minmax(116px, 150px) 1fr;
+        height: auto;
+        min-height: 72px;
+    }
+
+    body[data-page^="game-"] .session-pill {
+        display: none;
+    }
+
+    body[data-page^="game-"] .game-page-header h1 {
+        font-size: 28px;
+    }
+}
+
+@media (max-width: 760px) {
+    body[data-page^="game-"] .app {
+        display: block;
+    }
+
+    body[data-page^="game-"] .sidebar {
+        display: flex;
+        width: 100%;
+        min-height: auto;
+    }
+
+    body[data-page^="game-"] .game-page-header {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 10px 12px 12px;
+    }
+
+    body[data-page^="game-"] .game-topbar-back {
+        min-height: 42px;
+    }
+
+    body[data-page^="game-"] .game-panel,
+    body[data-page="game-focus"] .focus-board,
+    body[data-page="game-focus"] .focus-image,
+    body[data-page="game-focus"] .focus-board-wrap,
+    body[data-page="game-reaction"] .whack-arena {
+        min-height: 560px;
+        height: auto;
+    }
+
+    body[data-page^="game-"] .game-hud {
+        top: 12px;
+        right: 12px;
+    }
+
+    body[data-page^="game-"] .game-hud-item {
+        min-height: 48px;
+        padding: 8px 12px;
+        font-size: 22px;
+    }
+
+    body[data-page="game-reaction"] .whack-grid {
+        grid-template-columns: repeat(3, minmax(82px, 1fr));
+        gap: 10px;
+    }
+
+    body[data-page="game-reaction"] .whack-hole {
+        min-height: 96px;
+    }
+
+    body[data-page="game-memory"] .memory-board {
+        grid-template-columns: repeat(var(--memory-columns, 3), minmax(82px, 1fr));
+    }
+
+    body[data-page="game-memory"] .memory-card,
+    body[data-page="game-sequence"] .sequence-tile {
+        min-height: 82px;
+    }
+
+    body[data-page="game-sequence"] .sequence-board {
+        grid-template-columns: repeat(var(--sequence-columns, 3), minmax(82px, 1fr));
+    }
+
+    body[data-page="game-logic"] .logic-stage-title {
+        padding-right: 0;
+    }
+}
+
+/* ===== Game layout correction 2026-04-23: fixed sidebar + in-canvas controls ===== */
+body[data-page^="game-"] .app,
+body[data-page^="game-"] .content.game-content {
+    min-height: 100vh;
+}
+
+body.with-global-banner[data-page^="game-"] .app,
+body.with-global-banner[data-page^="game-"] .content.game-content {
+    min-height: calc(100vh - var(--banner-height));
+}
+
+body[data-page^="game-"] .content.game-content {
+    position: relative;
+    overflow: hidden;
+}
+
+body[data-page^="game-"] .game-page-header {
+    position: absolute;
+    top: 16px;
+    left: 24px;
+    right: auto;
+    z-index: 40;
+    display: block;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+body[data-page^="game-"] .game-page-header h1,
+body[data-page^="game-"] .game-page-header .session-pill {
+    display: none !important;
+}
+
+body[data-page^="game-"] .game-topbar-back {
+    pointer-events: auto;
+    min-height: 46px;
+    padding: 0 18px;
+    border: 2px solid rgba(15, 23, 42, 0.16);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+}
+
+body[data-page^="game-"] .game-panel {
+    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+}
+
+body.with-global-banner[data-page^="game-"] .game-panel {
+    min-height: calc(100vh - var(--banner-height));
+    height: calc(100vh - var(--banner-height));
+}
+
+body[data-page^="game-"] .game-hud {
+    top: 18px;
+    right: 24px;
+    max-width: min(360px, calc(100% - 210px));
+}
+
+body[data-page^="game-"] .game-hud-item {
+    min-height: 50px;
+    padding: 8px 16px;
+    border-width: 2px;
+    font-size: 24px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+@media (min-width: 761px) {
+    body[data-page^="game-"] .app {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    body[data-page^="game-"] .sidebar,
+    body[data-page^="game-"] .app.sidebar-collapsed .sidebar {
+        display: flex;
+        flex: 0 0 240px;
+        width: 240px;
+        min-width: 240px;
+        min-height: inherit;
+        padding: 24px 20px;
+        gap: 24px;
+    }
+
+    body[data-page^="game-"] .app.sidebar-collapsed .brand {
+        flex-direction: row;
+        justify-content: flex-start;
+        width: auto;
+    }
+
+    body[data-page^="game-"] .app.sidebar-collapsed .nav-link {
+        justify-content: flex-start;
+        min-height: auto;
+        padding: 12px 14px;
+    }
+
+    body[data-page^="game-"] .app.sidebar-collapsed .nav-label {
+        display: inline;
+    }
+
+    body[data-page^="game-"] .app.sidebar-collapsed .nav-icon {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+body[data-page="game-focus"] .focus-board-wrap,
+body[data-page="game-reaction"] .whack-arena {
+    min-height: 100%;
+    height: 100%;
+}
+
+body[data-page="game-focus"] .focus-board-wrap {
+    display: block;
+    min-height: 0;
+    height: auto;
+    background: #eef2f7;
+}
+
+body[data-page="game-focus"] .focus-board {
+    height: auto;
+}
+
+body[data-page="game-reaction"] .whack-arena {
+    padding: 76px 30px 30px;
+}
+
+body[data-page="game-memory"] .memory-panel,
+body[data-page="game-sequence"] .sequence-panel {
+    min-height: inherit;
+    height: inherit;
+    padding: 78px 28px 34px;
+}
+
+body[data-page="game-logic"] .classification-game-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 78px 28px 26px;
+}
+
+body[data-page="game-logic"] .logic-stage-title {
+    flex: 0 0 auto;
+    margin: 0;
+    padding-right: 220px;
+}
+
+body[data-page="game-logic"] .logic-stage-title h2 {
+    margin-bottom: 6px;
+}
+
+body[data-page="game-logic"] .game-start-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 16px;
+}
+
+body[data-page="game-logic"] .classification-pool-panel {
+    gap: 8px;
+}
+
+body[data-page="game-logic"] .classification-item-pool {
+    min-height: 126px;
+    padding: 12px;
+}
+
+body[data-page="game-logic"] .classification-item {
+    width: 136px;
+    min-width: 136px;
+    min-height: 104px;
+    grid-template-rows: 92px;
+    padding: 6px 8px;
+}
+
+body[data-page="game-logic"] .classification-item-media {
+    width: 92px;
+    height: 92px;
+    border-radius: 8px;
+}
+
+body[data-page="game-logic"] .classification-item-image,
+body[data-page="game-logic"] .classification-item-fallback {
+    width: 84px;
+    height: 84px;
+}
+
+body[data-page="game-logic"] .classification-zones-panel,
+body[data-page="game-logic"] .classification-zone-grid {
+    min-height: 0;
+}
+
+body[data-page="game-logic"] .classification-zone-grid {
+    height: 100%;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+body[data-page="game-logic"] .classification-zone-body {
+    min-height: 0;
+    height: 100%;
+    padding-top: 28px;
+}
+
+body[data-page="game-logic"] .classification-game-panel .game-start-overlay {
+    inset: auto auto 30px 50%;
+    width: 128px;
+    height: 128px;
+    background: transparent;
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
+body[data-page="game-logic"] .classification-game-panel .game-start-triangle {
+    pointer-events: auto;
+    transform: scale(0.86);
+}
+
+body[data-page="game-logic"] .logic-reset-floating {
+    left: 28px;
+    bottom: 22px;
+}
+
+@media (max-width: 760px) {
+    body[data-page^="game-"] .content.game-content {
+        overflow: visible;
+    }
+
+    body[data-page^="game-"] .game-panel {
+        height: auto;
+        min-height: 560px;
+        overflow: auto;
+    }
+
+    body[data-page^="game-"] .game-page-header {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+    }
+
+    body[data-page^="game-"] .game-hud {
+        right: 12px;
+        max-width: calc(100% - 150px);
+    }
+
+    body[data-page="game-logic"] .classification-game-panel {
+        padding: 74px 14px 24px;
+    }
+
+    body[data-page="game-logic"] .logic-stage-title {
+        padding-right: 0;
+    }
+
+    body[data-page="game-logic"] .classification-zone-grid {
+        height: auto;
+        grid-template-columns: 1fr;
+    }
+}

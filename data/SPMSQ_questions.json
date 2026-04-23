@@ -1,93 +1,92 @@
 [
-    {
-        "id": "SPMSQ_Q1",
-        "text": "今天是幾年幾月幾日？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__TODAY_DATE__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q2",
-        "text": "今天是星期幾？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__TODAY_WEEKDAY__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q3",
-        "text": "這裡是什麼地方？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["縣", "市", "區", "鄉", "鎮", "醫院", "診所"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q4",
-        "text": "你的電話號碼是幾號？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__PATIENT_ADDRESS__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q5",
-        "text": "你幾歲了？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__PATIENT_AGE__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q6",
-        "text": "你的生日是哪一天？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__PATIENT_BIRTHDAY__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q7",
-        "text": "現任總統是誰？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__PRESIDENT_CURRENT__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q8",
-        "text": "前任總統是誰？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__PRESIDENT_PREVIOUS__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q9",
-        "text": "你媽媽叫什麼名字？",
-        "scoring_rule": {
-            "type": "contains_any",
-            "expected": ["__PATIENT_MOTHER_NAME__"]
-        }
-    },
-    {
-        "id": "SPMSQ_Q10",
-        "text": "請從 20 開始一直減 3，減下去。",
-        "scoring_rule": {
-            "type": "sequence_subtract",
-            "start": 20,
-            "step": -3,
-            "count": 5,
-            "min_correct": 3
-        }
-    },
-    {
-        "id": "SPMSQ_Q11",
-        "text": "今天是否使用光療機?",
-        "choice_options": ["是", "否"],
-        "recording_disabled": true,
-        "exclude_from_scoring": true,
-        "scoring_rule": { "type": "exact", "expected": ["是", "否"] }
+  {
+    "id": "SPMSQ_Q1",
+    "text": "一年有幾個月？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["12", "十二"]
     }
+  },
+  {
+    "id": "SPMSQ_Q2",
+    "text": "一星期有幾天？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["7", "七"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q3",
+    "text": "紅燈亮的時候，行人和車子通常應該怎麼做？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["停", "停止", "停下來", "等待", "等"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q4",
+    "text": "香蕉成熟時，外皮通常是什麼顏色？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["黃", "黃色"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q5",
+    "text": "口渴的時候，通常會喝什麼來補充水分？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["水", "開水", "白開水", "茶", "飲料"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q6",
+    "text": "白天照亮天空，讓我們看得見東西的是什麼？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["太陽", "日光", "陽光", "日頭"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q7",
+    "text": "煮飯時最常用的主食材料是什麼？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["米", "白米", "米飯", "飯"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q8",
+    "text": "打電話找一個人時，通常需要知道對方的什麼號碼？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["電話", "電話號碼", "手機", "手機號碼", "號碼"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q9",
+    "text": "一年四季裡，天氣通常最熱的是哪一季？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["夏", "夏天", "夏季"]
+    }
+  },
+  {
+    "id": "SPMSQ_Q10",
+    "text": "一雙筷子通常有幾支？",
+    "audio_url": "",
+    "scoring_rule": {
+      "type": "contains_any",
+      "expected": ["2", "二", "兩"]
+    }
+  }
 ]

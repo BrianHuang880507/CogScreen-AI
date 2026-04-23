@@ -1,9 +1,6 @@
 (function () {
   const flow = window.GameFlow;
-  if (!flow) {
-    return;
-  }
-  if (!flow.ensureAuthenticated()) {
+  if (!flow || !flow.ensureAuthenticated()) {
     return;
   }
 
@@ -26,53 +23,39 @@
   );
 
   const DIFFICULTY_STORAGE_KEY = "memoryDifficulty";
-  const SYMBOL_POOL = [
-    "🍊",
-    "🍉",
-    "🍓",
-    "🍇",
-    "🥝",
-    "🍍",
-    "🍒",
-    "🍋",
-    "🥭",
-    "🍐",
-    "🍎",
-    "🍑",
-    "🍈",
-    "🫐",
-  ];
+  const SYMBOL_POOL = ["茶", "花", "米", "魚", "杯", "車", "門", "鞋", "書", "傘", "燈", "鐘", "桃", "星"];
 
+  // Completion-time scoring is intentionally minute-level for older adults.
   const DIFFICULTY_CONFIG = {
     easy: {
       label: "簡單",
-      pairs: 8,
-      columns: 4,
-      timeTargetSec: 36,
-      timeLimitSec: 110,
-      guardMinMovesPerPair: 1.45,
-      guardMaxMovesPerPair: 3.6,
-      guardMinMultiplier: 0.45,
+      pairs: 6,
+      columns: 3,
+      timeTargetSec: 120,
+      timeLimitSec: 300,
+      guardMinMovesPerPair: 1.6,
+      guardMaxMovesPerPair: 4.2,
+      guardMinMultiplier: 0.5,
     },
     medium: {
-      label: "中等",
-      pairs: 10,
-      columns: 5,
-      timeTargetSec: 52,
-      timeLimitSec: 130,
-      guardMinMovesPerPair: 1.5,
-      guardMaxMovesPerPair: 3.7,
-      guardMinMultiplier: 0.45,
+      label: "一般",
+      pairs: 8,
+      columns: 4,
+      timeTargetSec: 180,
+      timeLimitSec: 420,
+      guardMinMovesPerPair: 1.7,
+      guardMaxMovesPerPair: 4.5,
+      guardMinMultiplier: 0.5,
     },
     hard: {
-      label: "困難",
-      pairs: 12,
-      columns: 6,
-      timeTargetSec: 68,
-      timeLimitSec: 165,
-      guardMinMovesPerPair: 1.55,
-      guardMaxMovesPerPair: 3.8,
-      guardMinMultiplier: 0.45,
+      label: "挑戰",
+      pairs: 10,
+      columns: 5,
+      timeTargetSec: 240,
+      timeLimitSec: 540,
+      guardMinMovesPerPair: 1.8,
+      guardMaxMovesPerPair: 4.8,
+      guardMinMultiplier: 0.5,
     },
   };
 
@@ -144,7 +127,7 @@
       button.disabled = running;
     });
     if (instructionEl) {
-      instructionEl.textContent = `請找出 ${config.pairs} 組相同圖片配對。`;
+      instructionEl.textContent = `請找出 ${config.pairs} 組相同牌面。沒有倒數，完成時間會被記錄。`;
     }
   }
 
@@ -156,10 +139,9 @@
   }
 
   function setStartOverlayVisible(visible) {
-    if (!startOverlayEl) {
-      return;
+    if (startOverlayEl) {
+      startOverlayEl.classList.toggle("hidden", !visible);
     }
-    startOverlayEl.classList.toggle("hidden", !visible);
   }
 
   function shuffle(list) {
@@ -178,11 +160,10 @@
       return;
     }
     if (!running || !startAtMs) {
-      timerEl.textContent = "0.0";
+      timerEl.textContent = "00:00";
       return;
     }
-    const elapsed = (Date.now() - startAtMs) / 1000;
-    timerEl.textContent = elapsed.toFixed(1);
+    timerEl.textContent = flow.formatDuration((Date.now() - startAtMs) / 1000);
   }
 
   function updateMeta() {
@@ -203,11 +184,9 @@
   }
 
   function applyBoardLayout() {
-    if (!boardEl) {
-      return;
+    if (boardEl) {
+      boardEl.style.setProperty("--memory-columns", String(getDifficultyConfig().columns));
     }
-    const config = getDifficultyConfig();
-    boardEl.style.setProperty("--memory-columns", String(config.columns));
   }
 
   function buildDeck() {
@@ -231,6 +210,7 @@
       btn.type = "button";
       btn.className = "memory-card";
       btn.dataset.index = String(index);
+      btn.setAttribute("aria-pressed", "false");
 
       const front = document.createElement("span");
       front.className = "memory-card-front";
@@ -268,10 +248,7 @@
   }
 
   function cardButtonAt(index) {
-    if (!boardEl) {
-      return null;
-    }
-    return boardEl.querySelector(`[data-index="${index}"]`);
+    return boardEl ? boardEl.querySelector(`[data-index="${index}"]`) : null;
   }
 
   function revealIndex(index, reveal) {
@@ -293,35 +270,35 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("四類能力遊戲已完成，將前往結果分析。");
+      setStatus("四類遊戲都完成了，正在前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
-      }, 1700);
+      }, 1800);
       return;
     }
-    setStatus("本遊戲已完成，將返回遊戲選單。");
+    setStatus("圖片配對完成，正在回到遊戲選單。");
     redirectTimer = window.setTimeout(() => {
       window.location.href = flow.buildGameHubUrl(sessionId);
-    }, 1700);
+    }, 1800);
   }
 
   function calculateMemoryScore(elapsedSec, movesCount, pairsTotal, config) {
     const safePairs = Math.max(1, Number(pairsTotal) || 1);
     const safeMoves = Math.max(1, Number(movesCount) || 1);
     const safeElapsed = Math.max(0, Number(elapsedSec) || 0);
-
     const targetSec = Math.max(1, Number(config.timeTargetSec) || 1);
     const limitSec = Math.max(targetSec + 1, Number(config.timeLimitSec) || targetSec + 1);
     const overTarget = Math.max(0, safeElapsed - targetSec);
-    const timeWindow = limitSec - targetSec;
-    const timeScore = Math.max(0, Math.round((1 - Math.min(overTarget / timeWindow, 1)) * 100));
-
+    const timeScore = Math.max(
+      0,
+      Math.round((1 - Math.min(overTarget / (limitSec - targetSec), 1)) * 100),
+    );
     const minMovesPerPair = Math.max(1, Number(config.guardMinMovesPerPair) || 1);
     const maxMovesPerPair = Math.max(
       minMovesPerPair + 0.01,
-      Number(config.guardMaxMovesPerPair) || (minMovesPerPair + 0.01),
+      Number(config.guardMaxMovesPerPair) || minMovesPerPair + 0.01,
     );
-    const minMultiplier = Math.max(0.2, Math.min(1, Number(config.guardMinMultiplier) || 0.45));
+    const minMultiplier = Math.max(0.2, Math.min(1, Number(config.guardMinMultiplier) || 0.5));
     const movesPerPair = safeMoves / safePairs;
 
     let guardMultiplier = 1;
@@ -352,19 +329,13 @@
     const matchedPairs = Math.floor(matched.size / 2);
     const wrongAttempts = Math.max(0, moves - matchedPairs);
     const scoreResult = calculateMemoryScore(elapsed, moves, config.pairs, config);
-    const score = scoreResult.score;
     const endedAt = new Date();
-
-    if (resultEl) {
-      resultEl.textContent = `完成配對，用時 ${elapsed.toFixed(1)} 秒、翻牌 ${moves} 次，得分 ${score}（時間分 ${scoreResult.timeScore}，moves/pair ${scoreResult.movesPerPair}）。`;
-    }
-
-    onComplete({
+    const payload = {
       difficulty: selectedDifficulty,
       pairs_total: config.pairs,
       pairs_matched: matchedPairs,
       moves,
-      score,
+      score: scoreResult.score,
       duration_sec: Number(elapsed.toFixed(1)),
       completed_at: endedAt.toISOString(),
       details: {
@@ -372,20 +343,26 @@
         ended_at: endedAt.toISOString(),
         columns: config.columns,
         wrong_attempts: wrongAttempts,
-        scoring_version: "v2_time_main_with_move_guard",
+        scoring_version: "v3_minute_completion_time",
+        time_target_sec: config.timeTargetSec,
+        time_limit_sec: config.timeLimitSec,
         time_score: scoreResult.timeScore,
         guard_multiplier: scoreResult.guardMultiplier,
         moves_per_pair: scoreResult.movesPerPair,
         attempts: [...attemptLog],
       },
-    });
+    };
+    const pointAward = flow.awardGamePoints(sessionId, "memory", payload);
+
+    if (resultEl) {
+      resultEl.textContent = `完成配對，用時 ${flow.formatDuration(elapsed)}，翻牌 ${moves} 次，原遊戲分數 ${scoreResult.score}，本次獲得 ${pointAward.points} 點。`;
+    }
+
+    onComplete(payload);
   }
 
   function onCardClick(index) {
-    if (!running || lockInput || matched.has(index)) {
-      return;
-    }
-    if (firstIndex === index) {
+    if (!running || lockInput || matched.has(index) || firstIndex === index) {
       return;
     }
 
@@ -393,7 +370,7 @@
 
     if (firstIndex === null) {
       firstIndex = index;
-      setStatus("請選擇第二張牌。");
+      setStatus("請再翻一張，找相同的牌。");
       return;
     }
 
@@ -421,21 +398,21 @@
       secondIndex = null;
       lockInput = false;
       updateMeta();
-      setStatus("配對成功，請繼續。");
+      setStatus("配對成功，繼續找下一組。");
       if (matched.size === deck.length) {
         finishGame();
       }
       return;
     }
 
-    setStatus("配對失敗，請再試一次。");
+    setStatus("這一組不同，稍後會蓋回去。");
     window.setTimeout(() => {
       revealIndex(firstIndex, false);
       revealIndex(secondIndex, false);
       firstIndex = null;
       secondIndex = null;
       lockInput = false;
-    }, 550);
+    }, 900);
   }
 
   function setDifficulty(nextDifficulty) {
@@ -447,9 +424,9 @@
     renderDifficulty();
     prepareRoundBoard();
     if (resultEl) {
-      resultEl.textContent = "尚未開始。";
+      resultEl.textContent = "按開始後，翻牌找出相同內容。";
     }
-    setStatus(`已切換為 ${getDifficultyConfig().label}，按下藍色三角形開始。`);
+    setStatus(`已選擇 ${getDifficultyConfig().label}，按開始後開始計時。`);
   }
 
   function startGame() {
@@ -460,13 +437,13 @@
     startAtMs = Date.now();
     updateTimer();
     stopTimer();
-    timerInterval = window.setInterval(updateTimer, 100);
+    timerInterval = window.setInterval(updateTimer, 500);
 
     setStartOverlayVisible(false);
     renderDifficulty();
-    setStatus("遊戲進行中，請找出所有配對。");
+    setStatus("請翻兩張牌，找出相同的一組。");
     if (resultEl) {
-      resultEl.textContent = "遊戲進行中...";
+      resultEl.textContent = "遊戲進行中。";
     }
   }
 
@@ -475,16 +452,13 @@
     if (!entry.memory || !resultEl) {
       return;
     }
-    const difficultyLabel =
-      DIFFICULTY_CONFIG[entry.memory.difficulty || ""]?.label || "--";
-    resultEl.textContent = `上次結果：難度 ${difficultyLabel}，配對 ${entry.memory.pairs_matched}/${entry.memory.pairs_total}，得分 ${entry.memory.score}。`;
+    const difficultyLabel = DIFFICULTY_CONFIG[entry.memory.difficulty || ""]?.label || "--";
+    resultEl.textContent = `上次結果：${difficultyLabel}，完成 ${entry.memory.pairs_matched}/${entry.memory.pairs_total} 組，原遊戲分數 ${entry.memory.score}。`;
   }
 
   function initDifficulty() {
-    const stored = loadStoredDifficulty();
-    if (stored && DIFFICULTY_CONFIG[stored]) {
-      selectedDifficulty = stored;
-    }
+    selectedDifficulty = "easy";
+    saveStoredDifficulty(selectedDifficulty);
     renderDifficulty();
     difficultyButtons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -496,11 +470,9 @@
   if (sessionIdEl) {
     sessionIdEl.textContent = sessionId || "--";
   }
-
   if (backToGames) {
     backToGames.href = flow.buildGameHubUrl(sessionId);
   }
-
   if (startButtonEl) {
     startButtonEl.addEventListener("click", startGame);
   }
@@ -511,5 +483,5 @@
   hydrate();
   setStartOverlayVisible(true);
   updateMeta();
-  setStatus("請先選擇難度，再按下藍色三角形開始。");
+  setStatus("請選擇難度，按開始後翻牌配對。");
 })();

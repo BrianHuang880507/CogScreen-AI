@@ -1,9 +1,6 @@
 (function () {
   const flow = window.GameFlow;
-  if (!flow) {
-    return;
-  }
-  if (!flow.ensureAuthenticated()) {
+  if (!flow || !flow.ensureAuthenticated()) {
     return;
   }
 
@@ -28,10 +25,9 @@
   }
 
   function setStatus(text) {
-    if (!statusEl) {
-      return;
+    if (statusEl) {
+      statusEl.textContent = text;
     }
-    statusEl.textContent = text;
   }
 
   function isCardCompleted(entry, gameKey) {
@@ -71,12 +67,12 @@
     }
 
     if (!sessionId) {
-      setStatus("找不到 Session ID，請先完成測驗流程。");
+      setStatus("缺少 Session ID，請重新進入遊戲流程。");
       return;
     }
 
     if (allDone) {
-      setStatus("四類能力遊戲已完成，將自動前往結果分析。");
+      setStatus("四類遊戲都完成了，正在前往結果分析。");
       if (autoRedirectTimer) {
         window.clearTimeout(autoRedirectTimer);
       }
@@ -84,12 +80,14 @@
         window.location.href = flow.buildResultsUrl(sessionId);
       }, 2200);
     } else {
-      setStatus("請點選卡片進入遊戲（邏輯類任一遊戲完成即可）。");
+      setStatus("請選擇一個遊戲開始。完成遊戲可累積獨立點數。");
       if (autoRedirectTimer) {
         window.clearTimeout(autoRedirectTimer);
         autoRedirectTimer = null;
       }
     }
+
+    flow.renderPointsWidgets();
   }
 
   gameCards.forEach((card) => {

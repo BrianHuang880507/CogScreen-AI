@@ -1,9 +1,6 @@
 (function () {
   const flow = window.GameFlow;
-  if (!flow) {
-    return;
-  }
-  if (!flow.ensureAuthenticated()) {
+  if (!flow || !flow.ensureAuthenticated()) {
     return;
   }
 
@@ -26,30 +23,32 @@
   );
 
   const DIFFICULTY_STORAGE_KEY = "sequenceDifficulty";
+
+  // Completion-time scoring is tuned in minutes, not short seconds.
   const DIFFICULTY_CONFIG = {
     easy: {
       label: "簡單",
       totalNumbers: 9,
       columns: 3,
-      scoreBase: 120,
-      timePenalty: 2.5,
-      errorPenalty: 5,
+      timeTargetSec: 90,
+      timeLimitSec: 240,
+      errorPenalty: 4,
     },
     medium: {
-      label: "中等",
+      label: "一般",
       totalNumbers: 12,
       columns: 4,
-      scoreBase: 132,
-      timePenalty: 2.25,
-      errorPenalty: 5.4,
+      timeTargetSec: 150,
+      timeLimitSec: 360,
+      errorPenalty: 5,
     },
     hard: {
-      label: "困難",
+      label: "挑戰",
       totalNumbers: 16,
       columns: 4,
-      scoreBase: 145,
-      timePenalty: 2,
-      errorPenalty: 5.9,
+      timeTargetSec: 210,
+      timeLimitSec: 480,
+      errorPenalty: 6,
     },
   };
 
@@ -105,7 +104,7 @@
   }
 
   function rangeText(totalNumbers) {
-    return Array.from({ length: totalNumbers }, (_, index) => String(index + 1)).join(" → ");
+    return Array.from({ length: totalNumbers }, (_, index) => String(index + 1)).join("、");
   }
 
   function renderDifficulty() {
@@ -128,10 +127,9 @@
   }
 
   function setStartOverlayVisible(visible) {
-    if (!startOverlayEl) {
-      return;
+    if (startOverlayEl) {
+      startOverlayEl.classList.toggle("hidden", !visible);
     }
-    startOverlayEl.classList.toggle("hidden", !visible);
   }
 
   function shuffle(list) {
@@ -152,8 +150,7 @@
   function updateMeta() {
     const config = getDifficultyConfig();
     if (nextEl) {
-      nextEl.textContent =
-        nextNumber <= config.totalNumbers ? String(nextNumber) : "完成";
+      nextEl.textContent = nextNumber <= config.totalNumbers ? String(nextNumber) : "完成";
     }
     if (clicksEl) {
       clicksEl.textContent = String(clicks);
@@ -168,11 +165,10 @@
       return;
     }
     if (!running || !startAtMs) {
-      timerEl.textContent = "0.0";
+      timerEl.textContent = "00:00";
       return;
     }
-    const elapsed = (Date.now() - startAtMs) / 1000;
-    timerEl.textContent = elapsed.toFixed(1);
+    timerEl.textContent = flow.formatDuration((Date.now() - startAtMs) / 1000);
   }
 
   function paintTileState(value, state) {
@@ -192,16 +188,14 @@
       button.classList.add("is-wrong");
       window.setTimeout(() => {
         button.classList.remove("is-wrong");
-      }, 240);
+      }, 420);
     }
   }
 
   function applyBoardLayout() {
-    if (!boardEl) {
-      return;
+    if (boardEl) {
+      boardEl.style.setProperty("--sequence-columns", String(getDifficultyConfig().columns));
     }
-    const config = getDifficultyConfig();
-    boardEl.style.setProperty("--sequence-columns", String(config.columns));
   }
 
   function renderBoard() {
@@ -242,6 +236,15 @@
     }
   }
 
+  function calculateSequenceScore(elapsedSec, errorCount, config) {
+    const safeElapsed = Math.max(0, Number(elapsedSec) || 0);
+    const target = Math.max(1, Number(config.timeTargetSec) || 1);
+    const limit = Math.max(target + 1, Number(config.timeLimitSec) || target + 1);
+    const overTarget = Math.max(0, safeElapsed - target);
+    const timeScore = Math.round((1 - Math.min(overTarget / (limit - target), 1)) * 100);
+    return Math.max(0, Math.min(100, timeScore - errorCount * config.errorPenalty));
+  }
+
   function onComplete(payload) {
     if (!sessionId) {
       return;
@@ -251,16 +254,16 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("四類能力遊戲已完成，將前往結果分析。");
+      setStatus("四類遊戲都完成了，正在前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
-      }, 1700);
+      }, 1800);
       return;
     }
-    setStatus("本遊戲已完成，將返回遊戲選單。");
+    setStatus("數字順序完成，正在回到遊戲選單。");
     redirectTimer = window.setTimeout(() => {
       window.location.href = flow.buildGameHubUrl(sessionId);
-    }, 1700);
+    }, 1800);
   }
 
   function finishGame() {
@@ -270,24 +273,9 @@
     updateTimer();
 
     const elapsed = startAtMs ? (Date.now() - startAtMs) / 1000 : 0;
-    const score = Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(
-          config.scoreBase -
-            elapsed * config.timePenalty -
-            errors * config.errorPenalty,
-        ),
-      ),
-    );
+    const score = calculateSequenceScore(elapsed, errors, config);
     const endedAt = new Date();
-
-    if (resultEl) {
-      resultEl.textContent = `完成順序點擊，用時 ${elapsed.toFixed(1)} 秒，錯誤 ${errors} 次，得分 ${score}。`;
-    }
-
-    onComplete({
+    const payload = {
       difficulty: selectedDifficulty,
       total_numbers: config.totalNumbers,
       completed_count: config.totalNumbers,
@@ -300,9 +288,18 @@
         started_at: startedAtIso,
         ended_at: endedAt.toISOString(),
         columns: config.columns,
+        time_target_sec: config.timeTargetSec,
+        time_limit_sec: config.timeLimitSec,
         click_log: [...clickLog],
       },
-    });
+    };
+    const pointAward = flow.awardGamePoints(sessionId, "sequence", payload);
+
+    if (resultEl) {
+      resultEl.textContent = `完成數字順序，用時 ${flow.formatDuration(elapsed)}，誤點 ${errors} 次，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
+    }
+
+    onComplete(payload);
   }
 
   function onTileClick(value) {
@@ -326,7 +323,7 @@
       if (nextNumber > config.totalNumbers) {
         finishGame();
       } else {
-        setStatus(`正確，下一個是 ${nextNumber}。`);
+        setStatus(`很好，下一個請點 ${nextNumber}。`);
       }
       return;
     }
@@ -340,7 +337,7 @@
     });
     paintTileState(value, "wrong");
     updateMeta();
-    setStatus(`錯誤，請點 ${nextNumber}。`);
+    setStatus(`請先找 ${nextNumber}，慢慢來沒有關係。`);
   }
 
   function setDifficulty(nextDifficulty) {
@@ -352,9 +349,9 @@
     renderDifficulty();
     prepareRoundBoard();
     if (resultEl) {
-      resultEl.textContent = "尚未開始。";
+      resultEl.textContent = "按開始後，依照數字順序點擊。";
     }
-    setStatus(`已切換為 ${getDifficultyConfig().label}，按下藍色三角形開始。`);
+    setStatus(`已選擇 ${getDifficultyConfig().label}，按開始後開始計時。`);
   }
 
   function startGame() {
@@ -365,13 +362,13 @@
     startAtMs = Date.now();
     updateTimer();
     stopTimer();
-    timerInterval = window.setInterval(updateTimer, 100);
+    timerInterval = window.setInterval(updateTimer, 500);
 
     setStartOverlayVisible(false);
     renderDifficulty();
-    setStatus("遊戲進行中，請依序點擊。");
+    setStatus("請從 1 開始，依序點到最後一個數字。");
     if (resultEl) {
-      resultEl.textContent = "遊戲進行中...";
+      resultEl.textContent = "遊戲進行中。";
     }
   }
 
@@ -380,16 +377,13 @@
     if (!entry.sequence || !resultEl) {
       return;
     }
-    const difficultyLabel =
-      DIFFICULTY_CONFIG[entry.sequence.difficulty || ""]?.label || "--";
-    resultEl.textContent = `上次結果：難度 ${difficultyLabel}，錯誤 ${entry.sequence.errors} 次，得分 ${entry.sequence.score}。`;
+    const difficultyLabel = DIFFICULTY_CONFIG[entry.sequence.difficulty || ""]?.label || "--";
+    resultEl.textContent = `上次結果：${difficultyLabel}，誤點 ${entry.sequence.errors} 次，原遊戲分數 ${entry.sequence.score}。`;
   }
 
   function initDifficulty() {
-    const stored = loadStoredDifficulty();
-    if (stored && DIFFICULTY_CONFIG[stored]) {
-      selectedDifficulty = stored;
-    }
+    selectedDifficulty = "easy";
+    saveStoredDifficulty(selectedDifficulty);
     renderDifficulty();
     difficultyButtons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -401,11 +395,9 @@
   if (sessionIdEl) {
     sessionIdEl.textContent = sessionId || "--";
   }
-
   if (backToGames) {
     backToGames.href = flow.buildGameHubUrl(sessionId);
   }
-
   if (startButtonEl) {
     startButtonEl.addEventListener("click", startGame);
   }
@@ -416,5 +408,5 @@
   hydrate();
   setStartOverlayVisible(true);
   updateMeta();
-  setStatus("請先選擇難度，再按下藍色三角形開始。");
+  setStatus("請選擇難度，按開始後依序點擊數字。");
 })();

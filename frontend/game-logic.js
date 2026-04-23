@@ -1,9 +1,6 @@
 (function () {
   const flow = window.GameFlow;
-  if (!flow) {
-    return;
-  }
-  if (!flow.ensureAuthenticated()) {
+  if (!flow || !flow.ensureAuthenticated()) {
     return;
   }
 
@@ -13,8 +10,8 @@
   const ITEMS_PER_CATEGORY = 4;
   const DIFFICULTY_LABELS = {
     easy: "簡單",
-    medium: "中等",
-    hard: "困難",
+    medium: "一般",
+    hard: "挑戰",
   };
 
   const sessionId = flow.resolveSessionId();
@@ -38,10 +35,6 @@
   let currentDifficulty = null;
   let currentLevel = null;
   let selectedItemId = null;
-  let draggedItemId = null;
-  let touchDragState = null;
-  let hoveredTouchZone = null;
-  let suppressClickItemId = null;
   let completed = false;
   let roundStarted = false;
   let placedItemIds = new Set();
@@ -57,6 +50,17 @@
     }
   }
 
+  function setFeedback(message, tone) {
+    if (!logicFeedbackEl) {
+      return;
+    }
+    logicFeedbackEl.textContent = message || "";
+    logicFeedbackEl.classList.remove("is-info", "is-success", "is-error");
+    if (tone) {
+      logicFeedbackEl.classList.add(`is-${tone}`);
+    }
+  }
+
   function clearRedirect() {
     if (redirectTimer) {
       window.clearTimeout(redirectTimer);
@@ -64,23 +68,16 @@
     }
   }
 
-  function setRoundStarted(value) {
-    roundStarted = value;
-    if (logicStartOverlayEl) {
-      logicStartOverlayEl.classList.toggle("hidden", value);
-    }
-    if (itemPoolEl) {
-      itemPoolEl.classList.toggle("is-waiting-start", !value);
-    }
-    if (zoneGridEl) {
-      zoneGridEl.classList.toggle("is-waiting-start", !value);
-    }
+  function requiredCount() {
+    return Array.isArray(flow.REQUIRED_CATEGORIES)
+      ? flow.REQUIRED_CATEGORIES.length
+      : flow.GAME_KEYS.length;
   }
 
   function renderProgress() {
     const entry = flow.getSessionGameResults(sessionId);
     if (doneEl) {
-      doneEl.textContent = `${flow.countCompletedGames(entry)}/${Array.isArray(flow.REQUIRED_CATEGORIES) ? flow.REQUIRED_CATEGORIES.length : flow.GAME_KEYS.length}`;
+      doneEl.textContent = `${flow.countCompletedGames(entry)}/${requiredCount()}`;
     }
   }
 
@@ -93,27 +90,16 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("四類能力遊戲已完成，將前往結果分析。");
+      setStatus("四類遊戲都完成了，正在前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
-      }, 1700);
+      }, 1800);
       return;
     }
-    setStatus("本遊戲已完成，將返回遊戲選單。");
+    setStatus("分類遊戲完成，正在回到遊戲選單。");
     redirectTimer = window.setTimeout(() => {
       window.location.href = flow.buildGameHubUrl(sessionId);
-    }, 1700);
-  }
-
-  function setFeedback(message, tone) {
-    if (!logicFeedbackEl) {
-      return;
-    }
-    logicFeedbackEl.textContent = message || "";
-    logicFeedbackEl.classList.remove("is-info", "is-success", "is-error");
-    if (tone) {
-      logicFeedbackEl.classList.add(`is-${tone}`);
-    }
+    }, 1800);
   }
 
   function shuffle(list) {
@@ -125,23 +111,6 @@
       next[j] = temp;
     }
     return next;
-  }
-
-  function pickRoundItems(sourceLevel) {
-    const picked = [];
-    sourceLevel.categories.forEach((category) => {
-      const candidates = sourceLevel.items.filter((item) => item.category === category);
-      const sampled = shuffle(candidates).slice(0, ITEMS_PER_CATEGORY);
-      picked.push(...sampled.map((item) => ({ ...item })));
-    });
-
-    if (!picked.length) {
-      return shuffle(sourceLevel.items)
-        .slice(0, Math.min(sourceLevel.items.length, ITEMS_PER_CATEGORY))
-        .map((item) => ({ ...item }));
-    }
-
-    return shuffle(picked);
   }
 
   function levelExists(key) {
@@ -168,6 +137,22 @@
     }
   }
 
+  function pickRoundItems(sourceLevel) {
+    const picked = [];
+    sourceLevel.categories.forEach((category) => {
+      const candidates = sourceLevel.items.filter((item) => item.category === category);
+      picked.push(...shuffle(candidates).slice(0, ITEMS_PER_CATEGORY).map((item) => ({ ...item })));
+    });
+    return shuffle(picked.length ? picked : sourceLevel.items.map((item) => ({ ...item })));
+  }
+
+  function buildItemMap(level) {
+    itemMap = new Map();
+    level.items.forEach((item) => {
+      itemMap.set(item.id, item);
+    });
+  }
+
   function getItemById(itemId) {
     return itemMap.get(itemId) || null;
   }
@@ -183,34 +168,12 @@
     selectedItemId = null;
   }
 
-  function clearZoneStateClasses() {
-    if (!zoneGridEl) {
-      return;
-    }
-    const zones = Array.from(zoneGridEl.querySelectorAll(".classification-zone"));
-    zones.forEach((zone) => {
-      zone.classList.remove(
-        "is-valid-target",
-        "is-drop-hover",
-        "is-drop-valid",
-        "is-drop-invalid",
-      );
-    });
-  }
-
   function markValidTargetZone(expectedCategory) {
     if (!zoneGridEl) {
       return;
     }
-    clearZoneStateClasses();
-    if (!expectedCategory) {
-      return;
-    }
-    const zones = Array.from(zoneGridEl.querySelectorAll(".classification-zone"));
-    zones.forEach((zone) => {
-      if (zone.dataset.category === expectedCategory) {
-        zone.classList.add("is-valid-target");
-      }
+    Array.from(zoneGridEl.querySelectorAll(".classification-zone")).forEach((zone) => {
+      zone.classList.toggle("is-valid-target", Boolean(expectedCategory && zone.dataset.category === expectedCategory));
     });
   }
 
@@ -222,41 +185,9 @@
     const completedCount = placedItemIds.size;
     const score = total > 0 ? Math.round((completedCount / total) * 100) : 0;
     if (logicProgressMetaEl) {
-      logicProgressMetaEl.textContent = `已完成 ${completedCount}/${total}，得分 ${score} 分。`;
+      logicProgressMetaEl.textContent = `完成：${completedCount} / ${total}`;
     }
     return score;
-  }
-
-  function showZoneHoverState(zone) {
-    const activeId = draggedItemId || selectedItemId;
-    const activeItem = activeId ? getItemById(activeId) : null;
-    if (!activeItem) {
-      return;
-    }
-    zone.classList.add("is-drop-hover");
-    if (zone.dataset.category === activeItem.category) {
-      zone.classList.add("is-drop-valid");
-      zone.classList.remove("is-drop-invalid");
-    } else {
-      zone.classList.add("is-drop-invalid");
-      zone.classList.remove("is-drop-valid");
-    }
-  }
-
-  function resetZoneHoverState(zone) {
-    zone.classList.remove("is-drop-hover", "is-drop-valid", "is-drop-invalid");
-  }
-
-  function returnToPool(itemId) {
-    if (!itemPoolEl) {
-      return;
-    }
-
-    const node = itemNodes.get(itemId);
-    if (!node || node.classList.contains("is-locked")) {
-      return;
-    }
-    itemPoolEl.appendChild(node);
   }
 
   function finishGame(score) {
@@ -265,15 +196,11 @@
     }
     completed = true;
     const total = currentLevel.items.length;
-    if (logicResultEl) {
-      logicResultEl.textContent = `完成「${currentLevel.title}」，正確 ${total}/${total}，得分 ${score} 分。`;
-    }
-    setFeedback("分類全部正確，已完成本關。", "success");
     const endedAt = new Date();
     const durationSec = roundStartedAt
       ? Number(((endedAt.getTime() - roundStartedAt) / 1000).toFixed(1))
       : null;
-    onComplete({
+    const payload = {
       difficulty: currentDifficulty,
       level_title: currentLevel.title,
       correct: total,
@@ -281,17 +208,13 @@
       score,
       completed_at: endedAt.toISOString(),
       details: {
-        presented_categories: Array.isArray(currentLevel.categories)
-          ? [...currentLevel.categories]
-          : [],
-        presented_items: Array.isArray(currentLevel.items)
-          ? currentLevel.items.map((item) => ({
-              id: item.id,
-              label: item.label,
-              category: item.category,
-              image: item.image,
-            }))
-          : [],
+        presented_categories: [...currentLevel.categories],
+        presented_items: currentLevel.items.map((item) => ({
+          id: item.id,
+          label: item.label,
+          category: item.category,
+          image: item.image,
+        })),
         attempts: [...attemptLog],
         total_attempts: attemptLog.length,
         wrong_attempts: attemptLog.filter((entry) => !entry.is_correct).length,
@@ -299,11 +222,18 @@
         ended_at: endedAt.toISOString(),
         duration_sec: durationSec,
       },
-    });
+    };
+    const pointAward = flow.awardGamePoints(sessionId, "logic", payload);
+    if (logicResultEl) {
+      logicResultEl.textContent = `完成「${currentLevel.title}」，全部 ${total} 個都已放對，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
+    }
+    setFeedback("分類完成。", "success");
+    onComplete(payload);
   }
 
   function tryPlaceItem(itemId, targetCategory) {
     if (completed || !roundStarted) {
+      setStatus("請先按開始。");
       return;
     }
     const item = getItemById(itemId);
@@ -312,61 +242,53 @@
       return;
     }
 
-    const attempt = {
+    const isCorrect = item.category === targetCategory;
+    attemptLog.push({
       item_id: item.id,
       item_label: item.label,
       expected_category: item.category,
       target_category: targetCategory,
-      is_correct: item.category === targetCategory,
+      is_correct: isCorrect,
       at: new Date().toISOString(),
-    };
-    attemptLog.push(attempt);
+    });
 
-    if (item.category === targetCategory) {
-      const zoneBody = zoneBodyMap.get(targetCategory);
-      if (!zoneBody) {
-        return;
-      }
-      zoneBody.appendChild(node);
-      node.classList.add("is-locked");
-      node.classList.remove("is-selected", "is-dragging");
-      node.draggable = false;
-      node.setAttribute("aria-disabled", "true");
-      placedItemIds.add(itemId);
+    if (!isCorrect) {
       clearSelection();
       markValidTargetZone(null);
-      const score = updateProgressMeta();
-      setFeedback(`正確：${item.label} 屬於「${targetCategory}」。`, "success");
-      if (logicResultEl && placedItemIds.size < currentLevel.items.length) {
-        logicResultEl.textContent = `目前已完成 ${placedItemIds.size}/${currentLevel.items.length}。`;
-      }
-      setStatus("請繼續完成分類。");
-      if (placedItemIds.size === currentLevel.items.length) {
-        finishGame(score);
-      }
+      setFeedback(`再想一下，「${item.label}」不屬於「${targetCategory}」。`, "error");
+      setStatus("放錯了，物件會留在待分類區，可以再試一次。");
       return;
     }
 
-    returnToPool(itemId);
+    const zoneBody = zoneBodyMap.get(targetCategory);
+    if (!zoneBody) {
+      return;
+    }
+    zoneBody.appendChild(node);
+    node.classList.add("is-locked");
+    node.classList.remove("is-selected", "is-dragging");
+    node.draggable = false;
+    node.setAttribute("aria-disabled", "true");
+    placedItemIds.add(itemId);
     clearSelection();
     markValidTargetZone(null);
-    setFeedback(`分類錯誤：「${item.label}」不屬於「${targetCategory}」。`, "error");
-    if (logicResultEl) {
-      logicResultEl.textContent = "尚未完成。";
+    const score = updateProgressMeta();
+    setFeedback(`放對了：「${item.label}」屬於「${targetCategory}」。`, "success");
+    setStatus("很好，請繼續分類下一個。");
+    if (logicResultEl && placedItemIds.size < currentLevel.items.length) {
+      logicResultEl.textContent = `目前已完成 ${placedItemIds.size}/${currentLevel.items.length}。`;
     }
-    setStatus("分類錯誤，請再試一次。");
+    if (placedItemIds.size === currentLevel.items.length) {
+      finishGame(score);
+    }
   }
 
   function handleItemClick(itemId) {
-    if (suppressClickItemId === itemId) {
-      suppressClickItemId = null;
-      return;
-    }
     if (completed) {
       return;
     }
     if (!roundStarted) {
-      setStatus("請先按下藍色三角形開始。");
+      setStatus("請先按開始。");
       return;
     }
     const item = getItemById(itemId);
@@ -374,248 +296,17 @@
     if (!item || !node || node.classList.contains("is-locked")) {
       return;
     }
-
     if (selectedItemId === itemId) {
       clearSelection();
       markValidTargetZone(null);
       setFeedback("已取消選取。", "info");
       return;
     }
-
     clearSelection();
     selectedItemId = itemId;
     node.classList.add("is-selected");
     markValidTargetZone(item.category);
-    setFeedback(`已選取「${item.label}」，請點選「${item.category}」分類區。`, "info");
-  }
-
-  function handleDragStart(event, itemId) {
-    if (!roundStarted) {
-      event.preventDefault();
-      setStatus("請先按下藍色三角形開始。");
-      return;
-    }
-    const node = itemNodes.get(itemId);
-    const item = getItemById(itemId);
-    if (!node || !item || node.classList.contains("is-locked")) {
-      event.preventDefault();
-      return;
-    }
-    if (event.dataTransfer) {
-      event.dataTransfer.setData("text/plain", itemId);
-      event.dataTransfer.effectAllowed = "move";
-    }
-    clearSelection();
-    draggedItemId = itemId;
-    node.classList.add("is-dragging");
-    markValidTargetZone(item.category);
-    setFeedback(`拖曳「${item.label}」到「${item.category}」分類區。`, "info");
-  }
-
-  function handleDragEnd(itemId) {
-    const node = itemNodes.get(itemId);
-    if (node) {
-      node.classList.remove("is-dragging");
-    }
-    draggedItemId = null;
-    markValidTargetZone(null);
-  }
-
-  function findZoneByPoint(clientX, clientY) {
-    const target = document.elementFromPoint(clientX, clientY);
-    if (!target) {
-      return null;
-    }
-    return target.closest(".classification-zone");
-  }
-
-  function isPointInsideElement(el, clientX, clientY) {
-    if (!el) {
-      return false;
-    }
-    const rect = el.getBoundingClientRect();
-    return (
-      clientX >= rect.left
-      && clientX <= rect.right
-      && clientY >= rect.top
-      && clientY <= rect.bottom
-    );
-  }
-
-  function updateTouchZoneHover(clientX, clientY) {
-    const nextZone = findZoneByPoint(clientX, clientY);
-    if (hoveredTouchZone && hoveredTouchZone !== nextZone) {
-      resetZoneHoverState(hoveredTouchZone);
-      hoveredTouchZone = null;
-    }
-    if (nextZone) {
-      showZoneHoverState(nextZone);
-      hoveredTouchZone = nextZone;
-    }
-    return nextZone;
-  }
-
-  function resetTouchDragStyles(node) {
-    if (!node) {
-      return;
-    }
-    node.classList.remove("is-dragging");
-    node.style.position = "";
-    node.style.left = "";
-    node.style.top = "";
-    node.style.width = "";
-    node.style.height = "";
-    node.style.zIndex = "";
-    node.style.pointerEvents = "";
-    node.style.margin = "";
-  }
-
-  function clearTouchDragState() {
-    if (hoveredTouchZone) {
-      resetZoneHoverState(hoveredTouchZone);
-      hoveredTouchZone = null;
-    }
-    markValidTargetZone(null);
-    touchDragState = null;
-    window.removeEventListener("pointermove", handleTouchPointerMove);
-    window.removeEventListener("pointerup", handleTouchPointerUp);
-    window.removeEventListener("pointercancel", handleTouchPointerCancel);
-  }
-
-  function beginTouchDragging(state, clientX, clientY) {
-    const { node, item } = state;
-    if (!node || !item) {
-      return;
-    }
-    const rect = node.getBoundingClientRect();
-    state.dragging = true;
-    state.offsetX = state.startX - rect.left;
-    state.offsetY = state.startY - rect.top;
-
-    clearSelection();
-    draggedItemId = state.itemId;
-    node.classList.add("is-dragging");
-    node.style.position = "fixed";
-    node.style.width = `${Math.max(1, Math.round(rect.width))}px`;
-    node.style.height = `${Math.max(1, Math.round(rect.height))}px`;
-    node.style.left = `${Math.round(clientX - state.offsetX)}px`;
-    node.style.top = `${Math.round(clientY - state.offsetY)}px`;
-    node.style.zIndex = "1200";
-    node.style.pointerEvents = "none";
-    node.style.margin = "0";
-
-    markValidTargetZone(item.category);
-    setFeedback(`拖曳「${item.label}」到「${item.category}」分類區。`, "info");
-  }
-
-  function handleTouchPointerMove(event) {
-    const state = touchDragState;
-    if (!state || event.pointerId !== state.pointerId) {
-      return;
-    }
-    if (completed || !roundStarted) {
-      clearTouchDragState();
-      return;
-    }
-
-    const deltaX = event.clientX - state.startX;
-    const deltaY = event.clientY - state.startY;
-    const movedEnough = Math.hypot(deltaX, deltaY) >= 8;
-
-    if (!state.dragging) {
-      if (!movedEnough) {
-        return;
-      }
-      beginTouchDragging(state, event.clientX, event.clientY);
-    }
-
-    event.preventDefault();
-    const node = state.node;
-    if (node) {
-      node.style.left = `${Math.round(event.clientX - state.offsetX)}px`;
-      node.style.top = `${Math.round(event.clientY - state.offsetY)}px`;
-    }
-    updateTouchZoneHover(event.clientX, event.clientY);
-  }
-
-  function finalizeTouchDrop(clientX, clientY) {
-    const state = touchDragState;
-    if (!state) {
-      return;
-    }
-    const { itemId, node } = state;
-    resetTouchDragStyles(node);
-
-    const zone = updateTouchZoneHover(clientX, clientY);
-    if (zone && zone.dataset && zone.dataset.category) {
-      tryPlaceItem(itemId, zone.dataset.category);
-    } else if (isPointInsideElement(itemPoolEl, clientX, clientY)) {
-      returnToPool(itemId);
-    } else {
-      returnToPool(itemId);
-    }
-
-    suppressClickItemId = itemId;
-    draggedItemId = null;
-  }
-
-  function handleTouchPointerUp(event) {
-    const state = touchDragState;
-    if (!state || event.pointerId !== state.pointerId) {
-      return;
-    }
-
-    if (state.dragging) {
-      event.preventDefault();
-      finalizeTouchDrop(event.clientX, event.clientY);
-    }
-    clearTouchDragState();
-  }
-
-  function handleTouchPointerCancel(event) {
-    const state = touchDragState;
-    if (!state || event.pointerId !== state.pointerId) {
-      return;
-    }
-    if (state.dragging) {
-      resetTouchDragStyles(state.node);
-      draggedItemId = null;
-    }
-    clearTouchDragState();
-  }
-
-  function handlePointerStart(event, itemId) {
-    if (event.pointerType === "mouse") {
-      return;
-    }
-    if (completed || !roundStarted) {
-      return;
-    }
-    if (touchDragState) {
-      clearTouchDragState();
-    }
-
-    const node = itemNodes.get(itemId);
-    const item = getItemById(itemId);
-    if (!node || !item || node.classList.contains("is-locked")) {
-      return;
-    }
-
-    touchDragState = {
-      pointerId: event.pointerId,
-      itemId,
-      item,
-      node,
-      startX: event.clientX,
-      startY: event.clientY,
-      offsetX: 0,
-      offsetY: 0,
-      dragging: false,
-    };
-
-    window.addEventListener("pointermove", handleTouchPointerMove, { passive: false });
-    window.addEventListener("pointerup", handleTouchPointerUp);
-    window.addEventListener("pointercancel", handleTouchPointerCancel);
+    setFeedback(`已選取「${item.label}」，請點選它應該放入的分類。`, "info");
   }
 
   function createItemNode(item) {
@@ -625,7 +316,7 @@
     button.draggable = true;
     button.dataset.itemId = item.id;
     button.dataset.category = item.category;
-    button.title = `${item.label}（${item.category}）`;
+    button.title = `${item.label}，${item.category}`;
     button.setAttribute("aria-label", item.label);
 
     const mediaWrap = document.createElement("span");
@@ -652,40 +343,21 @@
 
     button.appendChild(mediaWrap);
     button.addEventListener("click", () => handleItemClick(item.id));
-    button.addEventListener("dragstart", (event) => handleDragStart(event, item.id));
-    button.addEventListener("dragend", () => handleDragEnd(item.id));
-    button.addEventListener("pointerdown", (event) => handlePointerStart(event, item.id));
-    return button;
-  }
-
-  function buildItemMap(level) {
-    itemMap = new Map();
-    level.items.forEach((item) => {
-      itemMap.set(item.id, item);
-    });
-  }
-
-  function setupPoolDropSupport() {
-    if (!itemPoolEl) {
-      return;
-    }
-    itemPoolEl.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      itemPoolEl.classList.add("is-drop-target");
-    });
-    itemPoolEl.addEventListener("dragleave", () => {
-      itemPoolEl.classList.remove("is-drop-target");
-    });
-    itemPoolEl.addEventListener("drop", (event) => {
-      event.preventDefault();
+    button.addEventListener("dragstart", (event) => {
       if (!roundStarted) {
-        itemPoolEl.classList.remove("is-drop-target");
+        event.preventDefault();
+        setStatus("請先按開始。");
         return;
       }
-      itemPoolEl.classList.remove("is-drop-target");
-      const itemId = event.dataTransfer ? event.dataTransfer.getData("text/plain") : "";
-      returnToPool(itemId);
+      event.dataTransfer.setData("text/plain", item.id);
+      button.classList.add("is-dragging");
+      markValidTargetZone(item.category);
     });
+    button.addEventListener("dragend", () => {
+      button.classList.remove("is-dragging");
+      markValidTargetZone(null);
+    });
+    return button;
   }
 
   function createZoneNode(category) {
@@ -704,36 +376,24 @@
     zone.appendChild(body);
 
     zone.addEventListener("click", () => {
-      if (!selectedItemId) {
-        return;
+      if (selectedItemId) {
+        tryPlaceItem(selectedItemId, category);
       }
-      tryPlaceItem(selectedItemId, category);
     });
-
     zone.addEventListener("dragover", (event) => {
       event.preventDefault();
-      showZoneHoverState(zone);
+      zone.classList.add("is-drop-hover");
     });
-
-    zone.addEventListener("dragenter", (event) => {
-      event.preventDefault();
-      showZoneHoverState(zone);
-    });
-
     zone.addEventListener("dragleave", () => {
-      resetZoneHoverState(zone);
+      zone.classList.remove("is-drop-hover", "is-drop-valid", "is-drop-invalid");
     });
-
     zone.addEventListener("drop", (event) => {
       event.preventDefault();
-      resetZoneHoverState(zone);
-      const itemId = event.dataTransfer
-        ? event.dataTransfer.getData("text/plain")
-        : draggedItemId;
-      if (!itemId) {
-        return;
+      zone.classList.remove("is-drop-hover", "is-drop-valid", "is-drop-invalid");
+      const itemId = event.dataTransfer ? event.dataTransfer.getData("text/plain") : "";
+      if (itemId) {
+        tryPlaceItem(itemId, category);
       }
-      tryPlaceItem(itemId, category);
     });
 
     zoneBodyMap.set(category, body);
@@ -754,9 +414,7 @@
       button.className = "difficulty-button classification-difficulty-button";
       button.dataset.difficulty = key;
       button.textContent = DIFFICULTY_LABELS[key] || key;
-      button.addEventListener("click", () => {
-        setDifficulty(key);
-      });
+      button.addEventListener("click", () => setDifficulty(key));
       difficultyPickerEl.appendChild(button);
     });
   }
@@ -765,11 +423,25 @@
     if (!difficultyPickerEl) {
       return;
     }
-    const buttons = Array.from(difficultyPickerEl.querySelectorAll(".classification-difficulty-button"));
-    buttons.forEach((button) => {
+    Array.from(difficultyPickerEl.querySelectorAll(".classification-difficulty-button")).forEach((button) => {
       const key = button.dataset.difficulty;
       button.classList.toggle("is-active", key === currentDifficulty);
+      button.disabled = roundStarted && !completed;
     });
+  }
+
+  function setRoundStarted(value) {
+    roundStarted = value;
+    if (logicStartOverlayEl) {
+      logicStartOverlayEl.classList.toggle("hidden", value);
+    }
+    if (itemPoolEl) {
+      itemPoolEl.classList.toggle("is-waiting-start", !value);
+    }
+    if (zoneGridEl) {
+      zoneGridEl.classList.toggle("is-waiting-start", !value);
+    }
+    syncDifficultyButtonState();
   }
 
   function renderCurrentLevel() {
@@ -782,18 +454,15 @@
     attemptLog = [];
     roundStartedAt = 0;
     selectedItemId = null;
-    draggedItemId = null;
     completed = false;
-    setRoundStarted(false);
     clearRedirect();
-    clearTouchDragState();
-    clearZoneStateClasses();
+    setRoundStarted(false);
 
     if (levelTitleEl) {
       levelTitleEl.textContent = currentLevel.title;
     }
     if (levelDescriptionEl) {
-      levelDescriptionEl.textContent = `難度：${DIFFICULTY_LABELS[currentDifficulty] || currentDifficulty}，每類隨機 ${ITEMS_PER_CATEGORY} 張，請將物件分類到下方區域。`;
+      levelDescriptionEl.textContent = `難度：${DIFFICULTY_LABELS[currentDifficulty] || currentDifficulty}。請把每張圖片放到正確分類。`;
     }
 
     zoneGridEl.innerHTML = "";
@@ -809,11 +478,11 @@
     });
 
     if (logicResultEl) {
-      logicResultEl.textContent = "尚未完成。";
+      logicResultEl.textContent = "按開始後，可以拖曳圖片，也可以先點圖片再點分類。";
     }
     updateProgressMeta();
-    setFeedback("按下中央藍色三角形後開始分類。", "info");
-    setStatus("按下藍色三角形開始。");
+    setFeedback("請先按開始。", "info");
+    setStatus("請選擇難度，按開始後進行分類。");
   }
 
   function setDifficulty(levelKey) {
@@ -821,24 +490,22 @@
       return;
     }
     const source = LEVELS[levelKey];
-    const roundItems = pickRoundItems(source);
     currentDifficulty = levelKey;
     currentLevel = {
       title: source.title,
       categories: [...source.categories],
-      items: roundItems,
+      items: pickRoundItems(source),
     };
     buildItemMap(currentLevel);
     saveStoredDifficulty(levelKey);
-    syncDifficultyButtonState();
     renderCurrentLevel();
+    syncDifficultyButtonState();
   }
 
   function resetCurrentLevel() {
-    if (!currentDifficulty) {
-      return;
+    if (currentDifficulty) {
+      setDifficulty(currentDifficulty);
     }
-    setDifficulty(currentDifficulty);
   }
 
   if (sessionIdEl) {
@@ -848,22 +515,18 @@
     backToGames.href = flow.buildGameHubUrl(sessionId);
   }
   if (!sessionId) {
-    setStatus("找不到 Session ID，請回測試流程。");
+    setStatus("缺少 Session ID，請回到遊戲選單重新進入。");
   }
 
   renderProgress();
-  setupPoolDropSupport();
   renderDifficultyPicker();
 
-  const storedDifficulty = loadStoredDifficulty();
-  const initialDifficulty = levelExists(storedDifficulty)
-    ? storedDifficulty
-    : findFirstAvailableDifficulty();
+  const initialDifficulty = levelExists("easy") ? "easy" : findFirstAvailableDifficulty();
 
   if (!initialDifficulty) {
-    setFeedback("找不到可用關卡資料，請檢查分類設定。", "error");
+    setFeedback("目前沒有可用分類資料。", "error");
     if (logicResultEl) {
-      logicResultEl.textContent = "遊戲初始化失敗。";
+      logicResultEl.textContent = "遊戲資料尚未載入。";
     }
     return;
   }
@@ -871,9 +534,7 @@
   setDifficulty(initialDifficulty);
 
   if (logicResetButton) {
-    logicResetButton.addEventListener("click", () => {
-      resetCurrentLevel();
-    });
+    logicResetButton.addEventListener("click", resetCurrentLevel);
   }
 
   if (logicStartButtonEl) {
@@ -885,8 +546,8 @@
       if (!roundStartedAt) {
         roundStartedAt = Date.now();
       }
-      setFeedback("遊戲開始，請進行分類。", "info");
-      setStatus("遊戲進行中。");
+      setFeedback("遊戲開始。請把圖片放到正確分類。", "info");
+      setStatus("可以拖曳圖片，也可以點圖片後再點分類。");
     });
   }
 })();

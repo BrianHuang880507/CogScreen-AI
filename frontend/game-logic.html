@@ -4,11 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/jpeg" href="/static/images/ui/itri_CEL_A.jpg" />
-    <title>失智症統計分析平台 - 物件分類遊戲</title>
+    <title>失智統計分析平台 - 物件分類</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260327" />
+    <link rel="stylesheet" href="styles.css?v=20260423" />
   </head>
   <body data-page="game-logic">
     <div class="app">
@@ -17,62 +17,37 @@
           <div class="brand-mark"></div>
           <div class="brand-text">
             <div class="brand-title">失智統計分析平台</div>
-            <div class="brand-sub">研究原型</div>
+            <div class="brand-sub">遊戲訓練</div>
           </div>
         </div>
         <nav class="nav">
           <a class="nav-link" data-view="login" href="/">登入</a>
-          <a class="nav-link nav-link-test" data-view="test" href="/test.html">測試</a>
+          <a class="nav-link nav-link-test" data-view="test" href="/test.html">測驗</a>
         </nav>
-        <div class="nav-bottom">
-          <a class="nav-link" data-view="qa" href="/qa.html">Q&A</a>
-        </div>
-        <div class="side-footer">
-          <p>研究/輔助篩檢用途，非診斷。</p>
-        </div>
       </aside>
 
-      <main class="content">
+      <main class="content game-content">
         <header class="page-header game-page-header">
-          <div>
-            <h1>邏輯：物件分類</h1>
-            <p class="muted">拖曳物件圖片到正確分類區，或使用點選模式完成分類。</p>
-          </div>
+          <a id="backToGames" class="game-topbar-back" href="/games.html">返回選單</a>
+          <h1>失智統計分析平台</h1>
           <div class="session-pill">Session ID: <span id="gameSessionId">--</span></div>
         </header>
 
-        <section class="panel game-summary-panel">
-          <p id="gameStatus" class="muted game-status-line">按下藍色三角形開始。</p>
-          <div
-            id="classificationDifficultyPicker"
-            class="difficulty-picker classification-difficulty-picker"
-            aria-label="難度切換"
-          ></div>
-          <div class="game-summary-meta game-summary-meta-right">
-            <a id="backToGames" class="ghost" href="/games.html">返回遊戲選單</a>
-            <p class="game-progress">完成進度：<span id="gamesDone">0/4</span></p>
-          </div>
-        </section>
+        <p id="gameStatus" class="game-status-hidden">請按開始後進行分類。</p>
+        <p class="game-progress game-progress-hidden">完成進度：<span id="gamesDone">0/4</span></p>
 
         <section class="panel game-panel classification-game-panel">
-          <div class="game-panel-head classification-game-head">
-            <div>
-              <h2 id="classificationLevelTitle">物件分類</h2>
-              <p id="classificationLevelDescription" class="muted">
-                請將上方物件拖曳到下方正確分類區。
-              </p>
-            </div>
-            <button id="logicResetButton" class="ghost" type="button">重新開始</button>
+          <div class="game-hud">
+            <div id="logicProgressMeta" class="game-hud-item">完成：0 / 0</div>
           </div>
-
-          <p id="logicProgressMeta" class="game-progress">已完成 0/0，得分 0 分。</p>
-          <p class="muted classification-help">
-            操作方式：拖曳物件到分類區，或先點選物件再點選分類區。
-          </p>
+          <div class="logic-stage-title">
+            <h2 id="classificationLevelTitle">物件分類</h2>
+            <p id="classificationLevelDescription" class="muted">請把每張圖片放到正確分類。</p>
+          </div>
 
           <div class="game-start-stage">
             <section class="classification-pool-panel" aria-labelledby="classificationPoolTitle">
-              <h3 id="classificationPoolTitle">待分類物件</h3>
+              <h3 id="classificationPoolTitle">待分類圖片</h3>
               <div id="classificationItemPool" class="classification-item-pool"></div>
             </section>
 
@@ -81,17 +56,13 @@
             </div>
 
             <div id="logicStartOverlay" class="game-start-overlay">
-              <button
-                id="logicStartButton"
-                class="game-start-triangle"
-                type="button"
-                aria-label="開始遊戲"
-              ></button>
+              <button id="logicStartButton" class="game-start-triangle" type="button" aria-label="開始遊戲"></button>
             </div>
           </div>
 
-          <p id="logicFeedback" class="game-feedback" aria-live="polite"></p>
-          <p id="logicResult" class="game-result">尚未完成。</p>
+          <button id="logicResetButton" class="ghost logic-reset-floating" type="button">重新開始</button>
+          <p id="logicFeedback" class="game-feedback game-result-hidden" aria-live="polite"></p>
+          <p id="logicResult" class="game-result game-result-hidden">按開始後，可以拖曳圖片，也可以先點圖片再點分類。</p>
         </section>
       </main>
     </div>
@@ -99,9 +70,8 @@
     <button id="logoutBubble" class="logout-bubble hidden">登出</button>
     <div id="toast" class="toast"></div>
     <script src="app.js?v=20260327"></script>
-    <script src="game-utils.js?v=20260327"></script>
-    <script src="classification-levels.js?v=20260318"></script>
-    <script src="game-logic.js?v=20260320"></script>
+    <script src="game-utils.js?v=20260423"></script>
+    <script src="classification-levels.js?v=20260423"></script>
+    <script src="game-logic.js?v=20260423"></script>
   </body>
 </html>
-

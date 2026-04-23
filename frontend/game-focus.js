@@ -1,9 +1,6 @@
 (function () {
   const flow = window.GameFlow;
-  if (!flow) {
-    return;
-  }
-  if (!flow.ensureAuthenticated()) {
+  if (!flow || !flow.ensureAuthenticated()) {
     return;
   }
 
@@ -17,6 +14,7 @@
   const startButton = document.getElementById("focusStartButton");
   const startOverlayEl = document.getElementById("focusStartOverlay");
   const progressEl = document.getElementById("focusProgress");
+  const hudFoundEl = document.getElementById("focusHudFound");
   const resultEl = document.getElementById("focusResult");
   const imageEl = document.getElementById("focusImage");
   const boardEl = document.getElementById("focusBoard");
@@ -29,8 +27,13 @@
   const difficultyOrder = ["easy", "medium", "hard"];
   const difficultyLabel = {
     easy: "簡單",
-    medium: "中等",
-    hard: "困難",
+    medium: "一般",
+    hard: "挑戰",
+  };
+  const FOCUS_TIME_TARGETS = {
+    easy: { targetSec: 180, limitSec: 420 },
+    medium: { targetSec: 240, limitSec: 540 },
+    hard: { targetSec: 300, limitSec: 660 },
   };
   const fallbackImage = "/static/images/games/spot-the-diff/img_0001.jpg";
 
@@ -46,58 +49,53 @@
   let startedAtIso = null;
 
   function setStatus(text) {
-    if (!statusEl) {
-      return;
+    if (statusEl) {
+      statusEl.textContent = text;
     }
-    statusEl.textContent = text;
   }
 
   function isPlayableLevel(level) {
-    if (!level) {
-      return false;
-    }
-    if (level.enabled === false) {
-      return false;
-    }
-    if (!level.image) {
-      return false;
-    }
-    return Array.isArray(level.differences) && level.differences.length > 0;
+    return Boolean(
+      level &&
+        level.enabled !== false &&
+        level.image &&
+        Array.isArray(level.differences) &&
+        level.differences.length > 0,
+    );
   }
 
   function getLevelByDifficulty(difficulty) {
-    return (
-      levels.find(
-        (level) => level.difficulty === difficulty && isPlayableLevel(level),
-      ) || null
-    );
+    return levels.find((level) => level.difficulty === difficulty && isPlayableLevel(level)) || null;
   }
 
   function hasPlayableDifficulty(difficulty) {
-    return levels.some(
-      (level) => level.difficulty === difficulty && isPlayableLevel(level),
-    );
+    return levels.some((level) => level.difficulty === difficulty && isPlayableLevel(level));
   }
 
   function getTotalDiffCount() {
-    if (!currentLevel || !Array.isArray(currentLevel.differences)) {
-      return 0;
-    }
-    return currentLevel.differences.length;
+    return currentLevel && Array.isArray(currentLevel.differences)
+      ? currentLevel.differences.length
+      : 0;
   }
 
   function renderProgress() {
     const entry = flow.getSessionGameResults(sessionId);
     if (doneEl) {
-      doneEl.textContent = `${flow.countCompletedGames(entry)}/${Array.isArray(flow.REQUIRED_CATEGORIES) ? flow.REQUIRED_CATEGORIES.length : flow.GAME_KEYS.length}`;
+      const required = Array.isArray(flow.REQUIRED_CATEGORIES)
+        ? flow.REQUIRED_CATEGORIES.length
+        : flow.GAME_KEYS.length;
+      doneEl.textContent = `${flow.countCompletedGames(entry)}/${required}`;
     }
   }
 
   function renderFound() {
-    if (!progressEl) {
-      return;
+    const text = `已找到：${found.size} / ${getTotalDiffCount()}`;
+    if (hudFoundEl) {
+      hudFoundEl.textContent = text;
     }
-    progressEl.textContent = `已找到 ${found.size} / ${getTotalDiffCount()}。`;
+    if (progressEl) {
+      progressEl.textContent = text;
+    }
   }
 
   function clearRedirect() {
@@ -108,10 +106,9 @@
   }
 
   function setStartOverlayVisible(visible) {
-    if (!startOverlayEl) {
-      return;
+    if (startOverlayEl) {
+      startOverlayEl.classList.toggle("hidden", !visible);
     }
-    startOverlayEl.classList.toggle("hidden", !visible);
   }
 
   function onComplete(payload) {
@@ -123,23 +120,22 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("四類能力遊戲已完成，將前往結果分析。");
+      setStatus("四類遊戲都完成了，正在前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
-      }, 1500);
+      }, 1800);
       return;
     }
-    setStatus("本遊戲已完成，將返回遊戲選單。");
+    setStatus("找不同完成，正在回到遊戲選單。");
     redirectTimer = window.setTimeout(() => {
       window.location.href = flow.buildGameHubUrl(sessionId);
-    }, 1500);
+    }, 1800);
   }
 
   function clearMarkers() {
-    if (!markersEl) {
-      return;
+    if (markersEl) {
+      markersEl.innerHTML = "";
     }
-    markersEl.innerHTML = "";
   }
 
   function recordClick(type, displayX, displayY, extra = {}) {
@@ -160,7 +156,6 @@
     clickFlashEl.style.left = `${displayX}px`;
     clickFlashEl.style.top = `${displayY}px`;
     clickFlashEl.classList.add(`is-${type}`);
-    // Force restart animation for repeated clicks.
     void clickFlashEl.offsetWidth;
     clickFlashEl.classList.add("show");
   }
@@ -241,14 +236,14 @@
     renderFound();
 
     if (resultEl) {
-      resultEl.textContent = `已選擇「${difficultyLabel[difficulty]}」難度，按下藍色三角形開始。`;
+      resultEl.textContent = `已選擇 ${difficultyLabel[difficulty]}，按開始後找出右半邊不同處。`;
     }
-    setStatus(`已載入 ${difficultyLabel[difficulty]} 題目。`);
+    setStatus(`目前難度：${difficultyLabel[difficulty]}。`);
 
     if (imageEl) {
       imageEl.dataset.fallbackApplied = "false";
       imageEl.src = level.image;
-      imageEl.alt = `找不同題目：${level.id}`;
+      imageEl.alt = `找不同題目 ${level.id}`;
     }
   }
 
@@ -258,7 +253,7 @@
       return;
     }
     if (!isPlayableLevel(currentLevel)) {
-      setStatus("此難度尚未開放。");
+      setStatus("這個難度暫時不能遊玩。");
       return;
     }
     clearRedirect();
@@ -271,9 +266,17 @@
     clearMarkers();
     renderFound();
     if (resultEl) {
-      resultEl.textContent = `請在右半邊圖片中找出 ${getTotalDiffCount()} 個不同處。`;
+      resultEl.textContent = `請在右半邊圖片中找出 ${getTotalDiffCount()} 個差異。`;
     }
-    setStatus("遊戲進行中。");
+    setStatus("遊戲開始，慢慢觀察右半邊圖片。");
+  }
+
+  function calculateFocusScore(elapsedSec, difficulty) {
+    const config = FOCUS_TIME_TARGETS[difficulty] || FOCUS_TIME_TARGETS.easy;
+    const safeElapsed = Math.max(0, Number(elapsedSec) || 0);
+    const overTarget = Math.max(0, safeElapsed - config.targetSec);
+    const windowSec = Math.max(1, config.limitSec - config.targetSec);
+    return Math.max(0, Math.round((1 - Math.min(overTarget / windowSec, 1)) * 100));
   }
 
   function finish() {
@@ -281,12 +284,10 @@
     setStartOverlayVisible(true);
     const elapsed = (performance.now() - startAt) / 1000;
     const total = getTotalDiffCount();
-    const score = Math.max(0, Math.round(140 - elapsed * 8));
+    const score = calculateFocusScore(elapsed, currentDifficulty);
     const endedAt = new Date();
-    if (resultEl) {
-      resultEl.textContent = `完成 ${difficultyLabel[currentDifficulty]} 難度，用時 ${elapsed.toFixed(1)} 秒，得分 ${score} 分。`;
-    }
-    onComplete({
+    const timeConfig = FOCUS_TIME_TARGETS[currentDifficulty] || FOCUS_TIME_TARGETS.easy;
+    const payload = {
       level_id: currentLevel ? currentLevel.id : null,
       difficulty: currentDifficulty,
       found: total,
@@ -297,10 +298,17 @@
       details: {
         started_at: startedAtIso,
         ended_at: endedAt.toISOString(),
+        time_target_sec: timeConfig.targetSec,
+        time_limit_sec: timeConfig.limitSec,
         total_clicks: clickLog.length,
         clicks: [...clickLog],
       },
-    });
+    };
+    const pointAward = flow.awardGamePoints(sessionId, "focus", payload);
+    if (resultEl) {
+      resultEl.textContent = `完成 ${difficultyLabel[currentDifficulty]}，用時 ${flow.formatDuration(elapsed)}，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
+    }
+    onComplete(payload);
   }
 
   function hydrate() {
@@ -309,9 +317,9 @@
       return;
     }
     const difficulty = entry.focus.difficulty
-      ? ` (${difficultyLabel[entry.focus.difficulty] || entry.focus.difficulty})`
+      ? `（${difficultyLabel[entry.focus.difficulty] || entry.focus.difficulty}）`
       : "";
-    resultEl.textContent = `上次結果${difficulty}：用時 ${entry.focus.elapsed_sec} 秒，得分 ${entry.focus.score} 分。`;
+    resultEl.textContent = `上次結果${difficulty}：用時 ${flow.formatDuration(entry.focus.elapsed_sec)}，原遊戲分數 ${entry.focus.score}。`;
   }
 
   function detectHit(x, y) {
@@ -330,12 +338,7 @@
         }
       }
       if (diff.shape === "rect") {
-        if (
-          x >= diff.x &&
-          x <= diff.x + diff.w &&
-          y >= diff.y &&
-          y <= diff.y + diff.h
-        ) {
+        if (x >= diff.x && x <= diff.x + diff.w && y >= diff.y && y <= diff.y + diff.h) {
           return diff;
         }
       }
@@ -350,19 +353,14 @@
     const rect = imageEl.getBoundingClientRect();
     const displayX = event.clientX - rect.left;
     const displayY = event.clientY - rect.top;
-    if (
-      displayX < 0 ||
-      displayY < 0 ||
-      displayX > rect.width ||
-      displayY > rect.height
-    ) {
+    if (displayX < 0 || displayY < 0 || displayX > rect.width || displayY > rect.height) {
       return;
     }
 
     if (!active) {
       recordClick("invalid_not_started", displayX, displayY);
       showFlash(displayX, displayY, "invalid");
-      setStatus("請先按下藍色三角形開始。");
+      setStatus("請先按開始。");
       return;
     }
 
@@ -374,7 +372,7 @@
         image_y: Number(y.toFixed(1)),
       });
       showFlash(displayX, displayY, "invalid");
-      setStatus("請點擊右半邊圖片。");
+      setStatus("請點右半邊圖片中的不同處。");
       return;
     }
 
@@ -385,6 +383,7 @@
         image_y: Number(y.toFixed(1)),
       });
       showFlash(displayX, displayY, "miss");
+      setStatus("這裡不是差異點，請再慢慢看。");
       return;
     }
 
@@ -397,16 +396,14 @@
     renderFound();
     renderMarkers();
     showFlash(displayX, displayY, "hit");
+    setStatus("找到了，繼續找下一個差異。");
     if (found.size >= getTotalDiffCount()) {
       finish();
     }
   }
 
   function pickDefaultDifficulty() {
-    const best = difficultyOrder.find((difficulty) =>
-      hasPlayableDifficulty(difficulty),
-    );
-    return best || null;
+    return difficultyOrder.find((difficulty) => hasPlayableDifficulty(difficulty)) || null;
   }
 
   if (sessionIdEl) {
@@ -415,12 +412,11 @@
   if (backToGames) {
     backToGames.href = flow.buildGameHubUrl(sessionId);
   }
-
   if (!sessionId) {
-    setStatus("找不到 Session ID，請回測試流程。");
+    setStatus("缺少 Session ID，請回到遊戲選單重新進入。");
   }
   if (!levels.length) {
-    setStatus("找不同題庫未載入。");
+    setStatus("沒有載入找不同題目。");
   }
 
   renderProgress();
@@ -433,11 +429,7 @@
   difficultyButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const nextDifficulty = button.dataset.focusDifficulty;
-      if (
-        !nextDifficulty ||
-        nextDifficulty === currentDifficulty ||
-        button.disabled
-      ) {
+      if (!nextDifficulty || nextDifficulty === currentDifficulty || button.disabled) {
         return;
       }
       selectDifficulty(nextDifficulty);
@@ -457,20 +449,20 @@
       }
       imageEl.dataset.fallbackApplied = "true";
       imageEl.src = fallbackImage;
-      setStatus("題目圖片載入失敗，已改用預設備援圖。");
+      setStatus("題目圖片載入失敗，已改用備用圖片。");
     });
 
     imageEl.addEventListener("click", handleBoardClick);
   }
 
-  const defaultDifficulty = pickDefaultDifficulty();
+  const defaultDifficulty = hasPlayableDifficulty("easy") ? "easy" : pickDefaultDifficulty();
   if (defaultDifficulty) {
     selectDifficulty(defaultDifficulty);
-    setStatus("按下藍色三角形開始。");
+    setStatus("請選擇難度，按開始後找不同。");
   } else {
     currentLevel = null;
     setDifficultyButtonState();
     renderFound();
-    setStatus("目前沒有可用題目。");
+    setStatus("目前沒有可用的找不同題目。");
   }
 })();

@@ -1,9 +1,6 @@
 (function () {
   const flow = window.GameFlow;
-  if (!flow) {
-    return;
-  }
-  if (!flow.ensureAuthenticated()) {
+  if (!flow || !flow.ensureAuthenticated()) {
     return;
   }
 
@@ -29,7 +26,35 @@
   const LEGACY_MOLE_IMAGE = "/static/images/games/whack-a-mole/mole.png";
   const LEGACY_MOLE_WHACKED_IMAGE = "/static/images/games/whack-a-mole/mole-whacked.png";
   const LEGACY_HAMMER_IMAGE = "/static/images/games/whack-a-mole/hammer.png";
-  const FRAME_MS = 45;
+
+  // Tunable senior-friendly rhythm. One round is rest -> cue -> visible.
+  const WHACK_TIMING = {
+    durationSec: 120,
+    frameMs: 80,
+    difficulty: {
+      easy: {
+        label: "慢速",
+        cueMs: 1800,
+        visibleMs: 2600,
+        restMs: 1400,
+        hint: "洞口會先亮 1.8 秒，再慢慢出現。",
+      },
+      medium: {
+        label: "一般",
+        cueMs: 1500,
+        visibleMs: 2300,
+        restMs: 1200,
+        hint: "洞口會先亮 1.5 秒，再慢慢出現。",
+      },
+      hard: {
+        label: "稍快",
+        cueMs: 1200,
+        visibleMs: 2000,
+        restMs: 1000,
+        hint: "仍保留提示，只是出現節奏稍快。",
+      },
+    },
+  };
 
   const padFrameNumber = (value) => String(value).padStart(4, "0");
   const buildFramePath = (prefix, frameNumber) =>
@@ -46,25 +71,20 @@
   let moleWhackedFrames = buildFrameRange("mole", 37, 44);
   let hammerFrames = buildFrameRange("hammer", 1, 4);
   let moleHoleImage = moleEmergeFrames[0];
-  const DIFFICULTY_CONFIG = {
-    easy: { label: "Easy", intervalMs: 1700, speedText: "slow" },
-    medium: { label: "Medium", intervalMs: 1400, speedText: "normal" },
-    hard: { label: "Hard", intervalMs: 1100, speedText: "fast" },
-  };
-
   let holes = [];
+  let cueHole = -1;
   let activeHole = -1;
   let hits = 0;
   let misses = 0;
   let running = false;
   let deadline = 0;
   let countdownTimer = null;
-  let moleTimer = null;
   let redirectTimer = null;
   let selectedDifficulty = "easy";
   let hammerResetTimer = null;
   let eventLog = [];
   let startedAtIso = null;
+  let pendingTimers = [];
   const animationState = new WeakMap();
 
   function getState(node) {
@@ -80,6 +100,20 @@
     }
   }
 
+  function queueTimer(callback, delay) {
+    const id = window.setTimeout(() => {
+      pendingTimers = pendingTimers.filter((timerId) => timerId !== id);
+      callback();
+    }, delay);
+    pendingTimers.push(id);
+    return id;
+  }
+
+  function clearPendingTimers() {
+    pendingTimers.forEach((timerId) => window.clearTimeout(timerId));
+    pendingTimers = [];
+  }
+
   function preloadFrameCandidates(candidates, fallbackFrame) {
     const pending = candidates.map(
       (path) =>
@@ -88,14 +122,11 @@
           img.onload = () => resolve(path);
           img.onerror = () => resolve(null);
           img.src = path;
-        })
+        }),
     );
     return Promise.all(pending).then((loaded) => {
       const available = loaded.filter(Boolean);
-      if (available.length > 0) {
-        return available;
-      }
-      return fallbackFrame ? [fallbackFrame] : [];
+      return available.length > 0 ? available : fallbackFrame ? [fallbackFrame] : [];
     });
   }
 
@@ -115,7 +146,7 @@
     });
   }
 
-  function playFrameSequence(imageEl, frames, frameMs = FRAME_MS) {
+  function playFrameSequence(imageEl, frames, frameMs = WHACK_TIMING.frameMs) {
     if (!imageEl || !frames.length) {
       return () => {};
     }
@@ -186,7 +217,7 @@
     const { whackedEl } = getHoleElements(hole);
     const state = getState(hole);
     state.cancelWhacked = playFrameSequence(whackedEl, moleWhackedFrames);
-    const duration = Math.max(FRAME_MS * moleWhackedFrames.length + 24, 120);
+    const duration = Math.max(WHACK_TIMING.frameMs * moleWhackedFrames.length + 80, 300);
     state.whackedResetTimer = window.setTimeout(() => {
       hole.classList.remove("is-whacked");
       stopHoleAnimations(hole);
@@ -195,28 +226,28 @@
   }
 
   function setStatus(text) {
-    if (!statusEl) {
-      return;
+    if (statusEl) {
+      statusEl.textContent = text;
     }
-    statusEl.textContent = text;
+  }
+
+  function requiredCount() {
+    return Array.isArray(flow.REQUIRED_CATEGORIES)
+      ? flow.REQUIRED_CATEGORIES.length
+      : flow.GAME_KEYS.length;
   }
 
   function renderProgress() {
     const entry = flow.getSessionGameResults(sessionId);
     if (doneEl) {
-      doneEl.textContent = `${flow.countCompletedGames(entry)}/${Array.isArray(flow.REQUIRED_CATEGORIES) ? flow.REQUIRED_CATEGORIES.length : flow.GAME_KEYS.length}`;
+      doneEl.textContent = `${flow.countCompletedGames(entry)}/${requiredCount()}`;
     }
   }
 
   function renderStats() {
     if (timerEl) {
-      let leftMs = 0;
-      if (running) {
-        leftMs = Math.max(0, deadline - Date.now());
-      } else if (deadline === 0) {
-        leftMs = 20000;
-      }
-      timerEl.textContent = (leftMs / 1000).toFixed(1);
+      const leftMs = running ? Math.max(0, deadline - Date.now()) : WHACK_TIMING.durationSec * 1000;
+      timerEl.textContent = flow.formatDuration(leftMs / 1000);
     }
     if (hitsEl) {
       hitsEl.textContent = String(hits);
@@ -234,7 +265,7 @@
   }
 
   function getDifficultyConfig() {
-    return DIFFICULTY_CONFIG[selectedDifficulty] || DIFFICULTY_CONFIG.easy;
+    return WHACK_TIMING.difficulty[selectedDifficulty] || WHACK_TIMING.difficulty.easy;
   }
 
   function renderDifficulty() {
@@ -244,24 +275,18 @@
       button.disabled = running;
     });
     if (speedHintEl) {
-      const speedText = config.speedText === "slow"
-        ? "慢"
-        : config.speedText === "normal"
-          ? "中"
-          : "快";
-      speedHintEl.textContent = `速度：${speedText}`;
+      speedHintEl.textContent = config.hint;
     }
   }
 
   function setStartOverlayVisible(visible) {
-    if (!startOverlayEl) {
-      return;
+    if (startOverlayEl) {
+      startOverlayEl.classList.toggle("hidden", !visible);
     }
-    startOverlayEl.classList.toggle("hidden", !visible);
   }
 
   function setDifficulty(nextDifficulty) {
-    if (running || !DIFFICULTY_CONFIG[nextDifficulty]) {
+    if (running || !WHACK_TIMING.difficulty[nextDifficulty]) {
       return;
     }
     selectedDifficulty = nextDifficulty;
@@ -277,23 +302,50 @@
     clearRedirect();
     const entry = flow.getSessionGameResults(sessionId);
     if (flow.allGamesCompleted(entry)) {
-      setStatus("四類能力遊戲已完成，將前往結果分析。");
+      setStatus("四類遊戲都完成了，正在前往結果分析。");
       redirectTimer = window.setTimeout(() => {
         window.location.href = flow.buildResultsUrl(sessionId);
-      }, 1500);
+      }, 1800);
       return;
     }
-    setStatus("本遊戲已完成，將返回遊戲選單。");
+    setStatus("打地鼠完成，正在回到遊戲選單。");
     redirectTimer = window.setTimeout(() => {
       window.location.href = flow.buildGameHubUrl(sessionId);
-    }, 1500);
+    }, 1800);
+  }
+
+  function resetHoleVisuals() {
+    cueHole = -1;
+    activeHole = -1;
+    holes.forEach((hole) => {
+      stopHoleAnimations(hole);
+      hole.classList.remove("is-cue", "is-active", "is-whacked", "is-missed");
+      setHoleBaseFrame(hole, moleEmergeFrames[0]);
+      setHoleWhackedFrame(hole, moleWhackedFrames[0]);
+    });
+  }
+
+  function setCueHole(index) {
+    cueHole = index;
+    activeHole = -1;
+    holes.forEach((hole, holeIndex) => {
+      const isCue = holeIndex === index;
+      hole.classList.toggle("is-cue", isCue);
+      hole.classList.remove("is-active");
+      if (!isCue && !hole.classList.contains("is-whacked")) {
+        stopHoleAnimations(hole);
+        setHoleBaseFrame(hole, moleEmergeFrames[0]);
+      }
+    });
   }
 
   function setActiveHole(index) {
     activeHole = index;
+    cueHole = -1;
     holes.forEach((hole, holeIndex) => {
       const isActive = holeIndex === index;
       hole.classList.toggle("is-active", isActive);
+      hole.classList.remove("is-cue");
       if (isActive) {
         hole.classList.remove("is-whacked");
         setHoleWhackedFrame(hole, moleWhackedFrames[0]);
@@ -313,40 +365,73 @@
     smashAudioEl.play().catch(() => {});
   }
 
-  function chooseHole() {
-    if (!running || !holes.length) {
-      return;
+  function chooseNextHole() {
+    if (!holes.length) {
+      return -1;
     }
     let next = Math.floor(Math.random() * holes.length);
-    if (next === activeHole) {
+    if (next === activeHole || next === cueHole) {
       next = (next + 1) % holes.length;
     }
-    setActiveHole(next);
-    eventLog.push({
-      type: "spawn",
-      hole_index: next,
-      at: new Date().toISOString(),
-      remaining_ms: Math.max(0, deadline - Date.now()),
-    });
+    return next;
   }
 
-  function stopGame() {
+  function scheduleNextMole(delayMs = getDifficultyConfig().restMs) {
+    if (!running) {
+      return;
+    }
+    const config = getDifficultyConfig();
+    queueTimer(() => {
+      if (!running || Date.now() >= deadline) {
+        finishGame();
+        return;
+      }
+      const next = chooseNextHole();
+      setCueHole(next);
+      setStatus("亮起來的洞口等一下會出現地鼠。");
+      eventLog.push({
+        type: "cue",
+        hole_index: next,
+        at: new Date().toISOString(),
+        remaining_ms: Math.max(0, deadline - Date.now()),
+      });
+      queueTimer(() => {
+        if (!running || Date.now() >= deadline) {
+          finishGame();
+          return;
+        }
+        setActiveHole(next);
+        setStatus("地鼠出現了，可以點它。");
+        eventLog.push({
+          type: "spawn",
+          hole_index: next,
+          at: new Date().toISOString(),
+          remaining_ms: Math.max(0, deadline - Date.now()),
+        });
+        queueTimer(() => {
+          if (!running) {
+            return;
+          }
+          if (activeHole === next) {
+            setActiveHole(-1);
+          }
+          scheduleNextMole(config.restMs);
+        }, config.visibleMs);
+      }, config.cueMs);
+    }, delayMs);
+  }
+
+  function finishGame() {
+    if (!running && deadline !== 0) {
+      return;
+    }
     running = false;
     if (countdownTimer) {
       window.clearInterval(countdownTimer);
       countdownTimer = null;
     }
-    if (moleTimer) {
-      window.clearInterval(moleTimer);
-      moleTimer = null;
-    }
-    setActiveHole(-1);
-    holes.forEach((hole) => {
-      stopHoleAnimations(hole);
-      hole.classList.remove("is-active", "is-whacked", "is-missed");
-      setHoleBaseFrame(hole, moleEmergeFrames[0]);
-      setHoleWhackedFrame(hole, moleWhackedFrames[0]);
-    });
+    clearPendingTimers();
+    resetHoleVisuals();
     clearTimer(hammerResetTimer);
     hammerResetTimer = null;
     if (hammerEl) {
@@ -358,23 +443,22 @@
       hammerEl.classList.remove("is-smashing");
       hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
     }
+
     deadline = Date.now();
     renderStats();
     setStartOverlayVisible(true);
     const score = Math.max(0, hits * 10 - misses * 2);
     const endedAt = new Date();
     const config = getDifficultyConfig();
-    if (resultEl) {
-      const label = config.label === "Easy" ? "簡單" : config.label === "Medium" ? "中等" : "困難";
-      resultEl.textContent = `完成 ${label} 難度，命中 ${hits}、失誤 ${misses}、得分 ${score}。`;
-    }
-    onComplete({
+    const payload = {
       hits,
       misses,
       score,
       difficulty: selectedDifficulty,
-      speed_ms: config.intervalMs,
-      duration_sec: 20,
+      cue_ms: config.cueMs,
+      visible_ms: config.visibleMs,
+      rest_ms: config.restMs,
+      duration_sec: WHACK_TIMING.durationSec,
       completed_at: endedAt.toISOString(),
       details: {
         started_at: startedAtIso,
@@ -382,7 +466,12 @@
         total_events: eventLog.length,
         events: [...eventLog],
       },
-    });
+    };
+    const pointAward = flow.awardGamePoints(sessionId, "reaction", payload);
+    if (resultEl) {
+      resultEl.textContent = `完成 ${config.label} 模式，命中 ${hits} 次、誤點 ${misses} 次，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
+    }
+    onComplete(payload);
     renderDifficulty();
   }
 
@@ -391,37 +480,29 @@
       return;
     }
     clearRedirect();
+    clearPendingTimers();
     running = true;
     hits = 0;
+    misses = 0;
     eventLog = [];
     startedAtIso = new Date().toISOString();
-    misses = 0;
-    deadline = Date.now() + 20000;
-    if (resultEl) {
-      resultEl.textContent = "遊戲進行中...";
-    }
+    deadline = Date.now() + WHACK_TIMING.durationSec * 1000;
+    resetHoleVisuals();
     setStartOverlayVisible(false);
-    holes.forEach((hole) => {
-      stopHoleAnimations(hole);
-      hole.classList.remove("is-active", "is-whacked", "is-missed");
-      setHoleBaseFrame(hole, moleEmergeFrames[0]);
-      setHoleWhackedFrame(hole, moleWhackedFrames[0]);
-    });
-    const config = getDifficultyConfig();
-    const label = config.label === "Easy" ? "簡單" : config.label === "Medium" ? "中等" : "困難";
-    setStatus(`${label}難度進行中，請在 20 秒內盡量命中。`);
     renderStats();
     renderDifficulty();
-    chooseHole();
+    const config = getDifficultyConfig();
+    setStatus(`${config.label}模式開始，總時間 ${flow.formatDuration(WHACK_TIMING.durationSec)}。先看提示光圈，再點出現的地鼠。`);
+    if (resultEl) {
+      resultEl.textContent = "遊戲進行中。";
+    }
     countdownTimer = window.setInterval(() => {
       renderStats();
       if (Date.now() >= deadline) {
-        stopGame();
+        finishGame();
       }
-    }, 100);
-    moleTimer = window.setInterval(() => {
-      chooseHole();
-    }, config.intervalMs);
+    }, 250);
+    scheduleNextMole(600);
   }
 
   function hydrate() {
@@ -429,14 +510,8 @@
     if (!entry.reaction || !resultEl) {
       return;
     }
-    const difficultyText = entry.reaction.difficulty
-      ? ({
-        easy: "簡單",
-        medium: "中等",
-        hard: "困難",
-      }[entry.reaction.difficulty] || entry.reaction.difficulty)
-      : "--";
-    resultEl.textContent = `上次結果（${difficultyText}）：命中 ${entry.reaction.hits}、失誤 ${entry.reaction.misses}、得分 ${entry.reaction.score}。`;
+    const difficultyText = WHACK_TIMING.difficulty[entry.reaction.difficulty || ""]?.label || "--";
+    resultEl.textContent = `上次結果：${difficultyText}，命中 ${entry.reaction.hits} 次，誤點 ${entry.reaction.misses} 次，原遊戲分數 ${entry.reaction.score}。`;
   }
 
   function setupGrid() {
@@ -455,7 +530,7 @@
         <img class="mole-sprite mole-base" src="${moleEmergeFrames[0] || LEGACY_MOLE_IMAGE}" alt="" aria-hidden="true" />
         <img class="mole-sprite mole-whacked" src="${moleWhackedFrames[0] || LEGACY_MOLE_WHACKED_IMAGE}" alt="" aria-hidden="true" />
       `;
-      hole.setAttribute("aria-label", `Whack-a-mole hole ${i + 1}`);
+      hole.setAttribute("aria-label", `第 ${i + 1} 個洞口`);
       hole.addEventListener("click", () => {
         if (!running) {
           return;
@@ -475,19 +550,26 @@
           setActiveHole(-1);
           hole.classList.add("is-whacked");
           runWhackedAnimation(hole);
-        } else {
+          setStatus("打中了。請等下一個提示光圈。");
+          clearPendingTimers();
+          scheduleNextMole(getDifficultyConfig().restMs);
+        } else if (i !== cueHole) {
           misses += 1;
           eventLog.push({
             type: "miss",
             hole_index: i,
             target_hole_index: activeHole,
+            cue_hole_index: cueHole,
             at: nowIso,
             remaining_ms: remainingMs,
           });
           hole.classList.add("is-missed");
+          setStatus("先看亮起來的洞口，再點地鼠。");
           window.setTimeout(() => {
             hole.classList.remove("is-missed");
-          }, 120);
+          }, 280);
+        } else {
+          setStatus("提示洞口亮起中，請等地鼠探出來再點。");
         }
         renderStats();
       });
@@ -516,7 +598,7 @@
       hammerEl.classList.remove("is-smashing");
       hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
       hammerResetTimer = null;
-    }, FRAME_MS * hammerFrames.length + 28);
+    }, WHACK_TIMING.frameMs * hammerFrames.length + 80);
   }
 
   function setupHammerMotion() {
@@ -524,7 +606,6 @@
       return;
     }
     hammerEl.src = hammerFrames[0] || LEGACY_HAMMER_IMAGE;
-
     let activePointerId = null;
 
     const moveHammer = (event) => {
@@ -532,10 +613,8 @@
         return;
       }
       const rect = arenaEl.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      hammerEl.style.setProperty("--hammer-x", `${x}px`);
-      hammerEl.style.setProperty("--hammer-y", `${y}px`);
+      hammerEl.style.setProperty("--hammer-x", `${event.clientX - rect.left}px`);
+      hammerEl.style.setProperty("--hammer-y", `${event.clientY - rect.top}px`);
     };
 
     const resetHammerState = () => {
@@ -568,7 +647,6 @@
     };
 
     arenaEl.addEventListener("pointermove", handlePointerMove);
-
     arenaEl.addEventListener("pointerdown", (event) => {
       if (!running) {
         return;
@@ -577,7 +655,6 @@
       handlePointerMove(event);
       triggerHammerSmash();
     });
-
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     window.addEventListener("pointerup", handlePointerEnd, { passive: true });
     window.addEventListener("pointercancel", handlePointerEnd, { passive: true });
@@ -594,30 +671,19 @@
   if (backToGames) {
     backToGames.href = flow.buildGameHubUrl(sessionId);
   }
-
   if (!sessionId) {
-    setStatus("找不到 Session ID，請回測試流程。");
+    setStatus("缺少 Session ID，請回到遊戲選單重新進入。");
   }
-
   if (difficultyPickerEl) {
     difficultyPickerEl.addEventListener("click", (event) => {
       const button = event.target.closest("[data-difficulty]");
-      if (!button) {
-        return;
+      if (button) {
+        setDifficulty(button.dataset.difficulty || "");
       }
-      setDifficulty(button.dataset.difficulty || "");
     });
   }
-
   if (startButton) {
-    startButton.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      startGame();
-    });
-    startButton.addEventListener("click", () => {
-      startGame();
-    });
+    startButton.addEventListener("click", startGame);
   }
 
   preloadAnimationAssets()
@@ -639,10 +705,10 @@
       renderDifficulty();
       setStartOverlayVisible(true);
       if (resultEl && !resultEl.textContent) {
-        resultEl.textContent = "按下藍色三角形開始。";
+        resultEl.textContent = "按下開始後，先看洞口提示，再點出現的地鼠。";
       }
       if (statusEl && !statusEl.textContent) {
-        setStatus("按下藍色三角形開始。");
+        setStatus("請選擇速度後按開始。");
       }
     });
 })();
