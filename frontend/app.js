@@ -104,6 +104,7 @@ const answerCache = new Map();
 let manualConfirmed = false;
 let recordingDisabled = false;
 let choiceSubmitting = false;
+let autoRecordAfterQuestionAudio = false;
 
 const VAD_THRESHOLD = 0.02;
 const GAMES_URL = "/games.html";
@@ -443,6 +444,18 @@ function initSidebarToggle() {
   brandMark.appendChild(textLabel);
   brandMark.setAttribute("role", "button");
   brandMark.setAttribute("tabindex", "0");
+
+  if (false && currentPage.startsWith("game-")) {
+    brandMark.classList.add("is-fixed-on-games");
+    brandMark.setAttribute("aria-label", "遊戲頁側邊欄固定顯示");
+    brandMark.setAttribute("aria-disabled", "true");
+    brandMark.removeAttribute("tabindex");
+    setSidebarCollapsed(false, false);
+    window.addEventListener("resize", () => {
+      setSidebarCollapsed(false, false);
+    });
+    return;
+  }
 
   if (brandMark.dataset.toggleBound !== "1") {
     brandMark.dataset.toggleBound = "1";
@@ -1073,6 +1086,36 @@ function speakQuestionText(text) {
   window.speechSynthesis.speak(utterance);
 }
 
+function playQuestionAudio(question, options = {}) {
+  const text = String((question && question.text) || "").trim();
+  const shouldAutoRecord = options.autoRecord === true;
+  const fallbackSpeak = () => {
+    autoRecordAfterQuestionAudio = false;
+    speakQuestionText(text);
+  };
+
+  if (questionAudio && question && question.audio_url) {
+    autoRecordAfterQuestionAudio = shouldAutoRecord;
+    if (questionAudio.getAttribute("src") !== question.audio_url) {
+      questionAudio.src = question.audio_url;
+    }
+    try {
+      questionAudio.currentTime = 0;
+    } catch (error) {
+      // Some browsers reject seeking before metadata is loaded.
+    }
+    const playPromise = questionAudio.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        fallbackSpeak();
+      });
+    }
+    return;
+  }
+
+  fallbackSpeak();
+}
+
 function updateExamHeader() {
   if (sessionIdDisplay) {
     const storedId = sessionStorage.getItem(USER_SESSION_KEY);
@@ -1304,23 +1347,15 @@ function autoReadCurrentQuestion(question) {
   if (!text) {
     return;
   }
-  const fallbackSpeak = () => {
-    window.setTimeout(() => {
-      speakQuestionText(text);
-    }, 120);
-  };
 
   if (questionAudio && question && question.audio_url) {
-    const playPromise = questionAudio.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        fallbackSpeak();
-      });
-    }
+    playQuestionAudio(question, { autoRecord: true });
     return;
   }
 
-  fallbackSpeak();
+  window.setTimeout(() => {
+    playQuestionAudio(question, { autoRecord: false });
+  }, 120);
 }
 
 async function fetchNextQuestion() {
@@ -1725,12 +1760,18 @@ if (currentPage === "exam") {
 
 if (questionAudio) {
   questionAudio.addEventListener("error", () => {
+    autoRecordAfterQuestionAudio = false;
     if (currentQuestion && currentQuestion.text) {
       speakQuestionText(currentQuestion.text);
     }
   });
 
   questionAudio.addEventListener("ended", () => {
+    const shouldBeginRecording = autoRecordAfterQuestionAudio;
+    autoRecordAfterQuestionAudio = false;
+    if (!shouldBeginRecording) {
+      return;
+    }
     if (recordingDisabled) {
       return;
     }
@@ -1742,7 +1783,7 @@ if (questionAudio) {
 
 if (speakQuestionButton) {
   speakQuestionButton.addEventListener("click", () => {
-    speakQuestionText(currentQuestion && currentQuestion.text);
+    playQuestionAudio(currentQuestion, { autoRecord: false });
   });
 }
 

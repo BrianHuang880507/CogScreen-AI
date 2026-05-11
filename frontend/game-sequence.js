@@ -23,31 +23,26 @@
   );
 
   const DIFFICULTY_STORAGE_KEY = "sequenceDifficulty";
+  const SEQUENCE_HINT_DELAY_MS = 5000;
 
-  // Completion-time scoring is tuned in minutes, not short seconds.
+  // Scores prioritize completion accuracy; duration is recorded separately.
   const DIFFICULTY_CONFIG = {
     easy: {
       label: "簡單",
       totalNumbers: 9,
       columns: 3,
-      timeTargetSec: 90,
-      timeLimitSec: 240,
       errorPenalty: 4,
     },
     medium: {
       label: "一般",
       totalNumbers: 12,
       columns: 4,
-      timeTargetSec: 150,
-      timeLimitSec: 360,
       errorPenalty: 5,
     },
     hard: {
       label: "挑戰",
       totalNumbers: 16,
       columns: 4,
-      timeTargetSec: 210,
-      timeLimitSec: 480,
       errorPenalty: 6,
     },
   };
@@ -63,6 +58,7 @@
   let startAtMs = 0;
   let startedAtIso = null;
   let clickLog = [];
+  let hintTimer = null;
 
   function requiredCount() {
     return Array.isArray(flow.REQUIRED_CATEGORIES)
@@ -216,6 +212,8 @@
 
   function prepareRoundBoard() {
     const config = getDifficultyConfig();
+    clearHintTimer();
+    clearHintState();
     nextNumber = 1;
     clicks = 0;
     errors = 0;
@@ -236,13 +234,50 @@
     }
   }
 
-  function calculateSequenceScore(elapsedSec, errorCount, config) {
-    const safeElapsed = Math.max(0, Number(elapsedSec) || 0);
-    const target = Math.max(1, Number(config.timeTargetSec) || 1);
-    const limit = Math.max(target + 1, Number(config.timeLimitSec) || target + 1);
-    const overTarget = Math.max(0, safeElapsed - target);
-    const timeScore = Math.round((1 - Math.min(overTarget / (limit - target), 1)) * 100);
-    return Math.max(0, Math.min(100, timeScore - errorCount * config.errorPenalty));
+  function clearHintTimer() {
+    if (hintTimer) {
+      window.clearTimeout(hintTimer);
+      hintTimer = null;
+    }
+  }
+
+  function clearHintState() {
+    if (!boardEl) {
+      return;
+    }
+    boardEl
+      .querySelectorAll(".sequence-tile.is-hint")
+      .forEach((button) => button.classList.remove("is-hint"));
+  }
+
+  function findTileByValue(value) {
+    if (!boardEl) {
+      return null;
+    }
+    return boardEl.querySelector(`[data-value="${value}"]`);
+  }
+
+  function scheduleHint() {
+    clearHintTimer();
+    clearHintState();
+    if (!running) {
+      return;
+    }
+    hintTimer = window.setTimeout(() => {
+      if (!running) {
+        return;
+      }
+      const button = findTileByValue(nextNumber);
+      if (button && !button.disabled) {
+        button.classList.add("is-hint");
+      }
+    }, SEQUENCE_HINT_DELAY_MS);
+  }
+
+  function calculateSequenceScore(errorCount, config) {
+    const safeErrors = Math.max(0, Number(errorCount) || 0);
+    const errorPenalty = Math.max(1, Number(config.errorPenalty) || 4);
+    return Math.max(0, Math.min(100, 100 - safeErrors * errorPenalty));
   }
 
   function onComplete(payload) {
@@ -269,11 +304,13 @@
   function finishGame() {
     const config = getDifficultyConfig();
     running = false;
+    clearHintTimer();
+    clearHintState();
     stopTimer();
     updateTimer();
 
     const elapsed = startAtMs ? (Date.now() - startAtMs) / 1000 : 0;
-    const score = calculateSequenceScore(elapsed, errors, config);
+    const score = calculateSequenceScore(errors, config);
     const endedAt = new Date();
     const payload = {
       difficulty: selectedDifficulty,
@@ -288,15 +325,16 @@
         started_at: startedAtIso,
         ended_at: endedAt.toISOString(),
         columns: config.columns,
-        time_target_sec: config.timeTargetSec,
-        time_limit_sec: config.timeLimitSec,
+        scoring_version: "v4_accuracy_completion_no_time_penalty",
+        scoring_basis: "errors_only",
+        error_penalty: config.errorPenalty,
         click_log: [...clickLog],
       },
     };
     const pointAward = flow.awardGamePoints(sessionId, "sequence", payload);
 
     if (resultEl) {
-      resultEl.textContent = `完成數字順序，用時 ${flow.formatDuration(elapsed)}，誤點 ${errors} 次，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
+      resultEl.textContent = `完成數字順序，誤點 ${errors} 次，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
     }
 
     onComplete(payload);
@@ -306,6 +344,9 @@
     if (!running) {
       return;
     }
+
+    clearHintTimer();
+    clearHintState();
 
     const config = getDifficultyConfig();
     clicks += 1;
@@ -323,6 +364,7 @@
       if (nextNumber > config.totalNumbers) {
         finishGame();
       } else {
+        scheduleHint();
         setStatus(`很好，下一個請點 ${nextNumber}。`);
       }
       return;
@@ -337,6 +379,7 @@
     });
     paintTileState(value, "wrong");
     updateMeta();
+    scheduleHint();
     setStatus(`請先找 ${nextNumber}，慢慢來沒有關係。`);
   }
 
@@ -344,14 +387,17 @@
     if (running || !DIFFICULTY_CONFIG[nextDifficulty]) {
       return;
     }
+    clearHintTimer();
+    clearHintState();
     selectedDifficulty = nextDifficulty;
     saveStoredDifficulty(selectedDifficulty);
     renderDifficulty();
+    scheduleHint();
     prepareRoundBoard();
     if (resultEl) {
       resultEl.textContent = "按開始後，依照數字順序點擊。";
     }
-    setStatus(`已選擇 ${getDifficultyConfig().label}，按開始後開始計時。`);
+    setStatus(`已選擇 ${getDifficultyConfig().label}，按開始後開始遊戲。`);
   }
 
   function startGame() {
@@ -365,6 +411,7 @@
     timerInterval = window.setInterval(updateTimer, 500);
 
     setStartOverlayVisible(false);
+    scheduleHint();
     renderDifficulty();
     setStatus("請從 1 開始，依序點到最後一個數字。");
     if (resultEl) {

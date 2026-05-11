@@ -4,11 +4,16 @@ import os
 import json
 import uuid
 import logging
+import re
+import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import quote
+from datetime import datetime
 
 import httpx
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from pydantic import BaseModel, Field, model_validator
 
 from backend.app import models, question_bank, reaction_time, reporting, scoring_rules, storage
 from backend.app.llm_judge import judge_answer
@@ -18,6 +23,239 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 QUESTION_BANK = question_bank.load_all_questions()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+FOCUS_LEVELS_PATH = PROJECT_ROOT / "frontend" / "focus-levels.js"
+FOCUS_IMAGE_DIR = PROJECT_ROOT / "static" / "images" / "games" / "spot-the-diff"
+FOCUS_IMAGE_URL_PREFIX = "/static/images/games/spot-the-diff/"
+ALLOWED_FOCUS_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+
+
+class FocusDifference(BaseModel):
+    id: str = Field(min_length=1)
+    shape: Literal["circle", "rect"]
+    x: int = Field(ge=0)
+    y: int = Field(ge=0)
+    r: int | None = Field(default=None, ge=1)
+    w: int | None = Field(default=None, ge=1)
+    h: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def validate_shape_dimensions(self) -> "FocusDifference":
+        if self.shape == "circle" and self.r is None:
+            raise ValueError("circle differences require r")
+        if self.shape == "rect" and (self.w is None or self.h is None):
+            raise ValueError("rect differences require w and h")
+        return self
+
+
+class FocusLevelUpdateRequest(BaseModel):
+    id: str = Field(default="spot-001", min_length=1)
+    difficulty: Literal["easy", "medium", "hard"] = "easy"
+    enabled: bool = True
+    image: str = Field(min_length=1)
+    differences: list[FocusDifference] = Field(default_factory=list)
+
+
+class FocusLevel(BaseModel):
+    id: str = Field(min_length=1)
+    difficulty: Literal["easy", "medium", "hard"] = "easy"
+    enabled: bool = True
+    image: str = Field(min_length=1)
+    differences: list[FocusDifference] = Field(default_factory=list)
+
+
+class FocusLevelsUpdateRequest(BaseModel):
+    levels: list[FocusLevel] = Field(min_length=1)
+    active_id: str | None = None
+    allow_empty_update: bool = False
+
+
+def sanitize_focus_image_filename(filename: str | None) -> str:
+    raw_name = (filename or "spot-diff.jpg").replace("\\", "/").split("/")[-1].strip()
+    if not raw_name:
+        raw_name = "spot-diff.jpg"
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", raw_name)
+    safe_name = re.sub(r"\s+", " ", safe_name).strip(" .")
+    if not safe_name:
+        safe_name = "spot-diff.jpg"
+    suffix = Path(safe_name).suffix.lower()
+    if suffix not in ALLOWED_FOCUS_IMAGE_EXTENSIONS:
+        safe_name = f"{Path(safe_name).stem or 'spot-diff'}.jpg"
+    return safe_name
+
+
+def unique_focus_image_path(filename: str) -> Path:
+    FOCUS_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    candidate = FOCUS_IMAGE_DIR / filename
+    if not candidate.exists():
+        return candidate
+    stem = candidate.stem
+    suffix = candidate.suffix
+    counter = 2
+    while True:
+        next_candidate = FOCUS_IMAGE_DIR / f"{stem}-{counter}{suffix}"
+        if not next_candidate.exists():
+            return next_candidate
+        counter += 1
+
+
+def render_focus_levels_js(payload: FocusLevelUpdateRequest) -> str:
+    return render_focus_levels([FocusLevel(**payload.model_dump())])
+
+
+def render_focus_levels(levels: list[FocusLevel]) -> str:
+    rendered_levels: list[str] = []
+    for level in levels:
+        diff_lines: list[str] = []
+        for diff in level.differences:
+            if diff.shape == "circle":
+                diff_lines.append(
+                    f'                {{ id: {json.dumps(diff.id, ensure_ascii=False)}, '
+                    f'shape: "circle", x: {diff.x}, y: {diff.y}, r: {diff.r} }},'
+                )
+                continue
+            diff_lines.append(
+                f'                {{ id: {json.dumps(diff.id, ensure_ascii=False)}, '
+                f'shape: "rect", x: {diff.x}, y: {diff.y}, w: {diff.w}, h: {diff.h} }},'
+            )
+        differences = "\n".join(diff_lines)
+        rendered_levels.append(
+            "        {\n"
+            f"            id: {json.dumps(level.id, ensure_ascii=False)},\n"
+            f"            difficulty: {json.dumps(level.difficulty, ensure_ascii=False)},\n"
+            f"            enabled: {str(level.enabled).lower()},\n"
+            f"            image: {json.dumps(level.image, ensure_ascii=False)},\n"
+            "            differences: [\n"
+            f"{differences}\n"
+            "            ],\n"
+            "        },"
+        )
+    return (
+        "(function () {\n"
+        "    const FOCUS_LEVELS = [\n"
+        f"{chr(10).join(rendered_levels)}\n"
+        "    ];\n\n"
+        "    window.FOCUS_LEVELS = FOCUS_LEVELS;\n"
+        "})();\n"
+    )
+
+
+def parse_existing_difference_counts() -> dict[str, int]:
+    if not FOCUS_LEVELS_PATH.exists():
+        return {}
+    text = FOCUS_LEVELS_PATH.read_text(encoding="utf-8")
+    counts: dict[str, int] = {}
+    blocks = re.finditer(
+        r"\{\s*id:\s*['\"](?P<id>[^'\"]+)['\"],[\s\S]*?difficulty:\s*['\"][^'\"]+['\"],[\s\S]*?differences:\s*\[(?P<diffs>[\s\S]*?)\]\s*,",
+        text,
+    )
+    for match in blocks:
+        diffs_text = match.group("diffs")
+        counts[match.group("id")] = len(re.findall(r"\bid:\s*['\"]diff-", diffs_text))
+    return counts
+
+
+def backup_focus_levels_file() -> str | None:
+    if not FOCUS_LEVELS_PATH.exists():
+        return None
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = FOCUS_LEVELS_PATH.with_name(f"focus-levels.backup-{timestamp}.js")
+    shutil.copy2(FOCUS_LEVELS_PATH, backup_path)
+    return str(backup_path)
+
+
+def validate_focus_levels_payload(payload: FocusLevelsUpdateRequest) -> None:
+    level_ids = [level.id for level in payload.levels]
+    if len(level_ids) != len(set(level_ids)):
+        raise HTTPException(status_code=400, detail="Level ids must be unique")
+    existing_counts = parse_existing_difference_counts()
+    for level in payload.levels:
+        if not level.image.startswith(FOCUS_IMAGE_URL_PREFIX):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image path must start with {FOCUS_IMAGE_URL_PREFIX}",
+            )
+        diff_ids = [diff.id for diff in level.differences]
+        if len(diff_ids) != len(set(diff_ids)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Difference ids must be unique for level {level.id}",
+            )
+        if (
+            not payload.allow_empty_update
+            and existing_counts.get(level.id, 0) > 0
+            and not level.differences
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Refusing to replace level {level.id} differences with an empty list",
+            )
+
+
+def render_legacy_focus_levels_js(payload: FocusLevelUpdateRequest) -> str:
+    diff_lines: list[str] = []
+    for diff in payload.differences:
+        if diff.shape == "circle":
+            diff_lines.append(
+                f'                {{ id: {json.dumps(diff.id, ensure_ascii=False)}, '
+                f'shape: "circle", x: {diff.x}, y: {diff.y}, r: {diff.r} }},'
+            )
+            continue
+        diff_lines.append(
+            f'                {{ id: {json.dumps(diff.id, ensure_ascii=False)}, '
+            f'shape: "rect", x: {diff.x}, y: {diff.y}, w: {diff.w}, h: {diff.h} }},'
+        )
+    differences = "\n".join(diff_lines)
+    return (
+        "(function () {\n"
+        "    const FOCUS_LEVELS = [\n"
+        "        {\n"
+        f"            id: {json.dumps(payload.id, ensure_ascii=False)},\n"
+        f"            difficulty: {json.dumps(payload.difficulty, ensure_ascii=False)},\n"
+        f"            enabled: {str(payload.enabled).lower()},\n"
+        f"            image: {json.dumps(payload.image, ensure_ascii=False)},\n"
+        "            differences: [\n"
+        f"{differences}\n"
+        "            ],\n"
+        "        },\n"
+        "    ];\n\n"
+        "    window.FOCUS_LEVELS = FOCUS_LEVELS;\n"
+        "})();\n"
+    )
+
+
+@router.post("/focus-level-image")
+async def upload_focus_level_image(image: UploadFile = File(...)) -> dict[str, str]:
+    if image.content_type and not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image uploads are allowed")
+    safe_name = sanitize_focus_image_filename(image.filename)
+    destination = unique_focus_image_path(safe_name)
+    content = await image.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty")
+    destination.write_bytes(content)
+    return {
+        "image": f"{FOCUS_IMAGE_URL_PREFIX}{quote(destination.name)}",
+        "filename": destination.name,
+    }
+
+
+@router.post("/focus-levels")
+async def update_focus_levels(payload: FocusLevelsUpdateRequest) -> dict[str, Any]:
+    validate_focus_levels_payload(payload)
+    FOCUS_LEVELS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    backup_path = backup_focus_levels_file()
+    tmp_path = FOCUS_LEVELS_PATH.with_suffix(".js.tmp")
+    tmp_path.write_text(render_focus_levels(payload.levels), encoding="utf-8")
+    tmp_path.replace(FOCUS_LEVELS_PATH)
+    return {
+        "ok": True,
+        "path": str(FOCUS_LEVELS_PATH),
+        "backup_path": backup_path,
+        "count": sum(len(level.differences) for level in payload.levels),
+        "level_count": len(payload.levels),
+        "active_id": payload.active_id,
+    }
 
 
 @router.post("/sessions", response_model=models.SessionCreateResponse)

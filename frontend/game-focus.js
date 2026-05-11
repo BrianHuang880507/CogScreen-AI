@@ -30,11 +30,6 @@
     medium: "一般",
     hard: "挑戰",
   };
-  const FOCUS_TIME_TARGETS = {
-    easy: { targetSec: 180, limitSec: 420 },
-    medium: { targetSec: 240, limitSec: 540 },
-    hard: { targetSec: 300, limitSec: 660 },
-  };
   const fallbackImage = "/static/images/games/spot-the-diff/img_0001.jpg";
 
   let currentDifficulty = "easy";
@@ -64,12 +59,21 @@
     );
   }
 
-  function getLevelByDifficulty(difficulty) {
-    return levels.find((level) => level.difficulty === difficulty && isPlayableLevel(level)) || null;
+  function getPlayableLevelsByDifficulty(difficulty) {
+    return levels.filter((level) => level.difficulty === difficulty && isPlayableLevel(level));
+  }
+
+  function getRandomLevelByDifficulty(difficulty) {
+    const playableLevels = getPlayableLevelsByDifficulty(difficulty);
+    if (!playableLevels.length) {
+      return null;
+    }
+    const selectedIndex = Math.floor(Math.random() * playableLevels.length);
+    return playableLevels[selectedIndex];
   }
 
   function hasPlayableDifficulty(difficulty) {
-    return levels.some((level) => level.difficulty === difficulty && isPlayableLevel(level));
+    return getPlayableLevelsByDifficulty(difficulty).length > 0;
   }
 
   function getTotalDiffCount() {
@@ -96,6 +100,29 @@
     if (progressEl) {
       progressEl.textContent = text;
     }
+  }
+
+  function updateBoardFit() {
+    if (!boardEl || !naturalWidth || !naturalHeight) {
+      return;
+    }
+    const wrapEl = boardEl.parentElement;
+    const availableWidth = wrapEl ? wrapEl.clientWidth : window.innerWidth;
+    const availableHeight = wrapEl ? wrapEl.clientHeight : window.innerHeight;
+    if (!availableWidth || !availableHeight) {
+      return;
+    }
+
+    const imageAspect = naturalWidth / naturalHeight;
+    let targetWidth = availableWidth;
+    let targetHeight = targetWidth / imageAspect;
+    if (targetHeight > availableHeight) {
+      targetHeight = availableHeight;
+      targetWidth = targetHeight * imageAspect;
+    }
+
+    boardEl.style.width = `${Math.floor(targetWidth)}px`;
+    boardEl.style.height = `${Math.floor(targetHeight)}px`;
   }
 
   function clearRedirect() {
@@ -217,7 +244,7 @@
   }
 
   function selectDifficulty(difficulty) {
-    const level = getLevelByDifficulty(difficulty);
+    const level = getRandomLevelByDifficulty(difficulty);
     if (!level) {
       return;
     }
@@ -231,6 +258,10 @@
     currentLevel = level;
     naturalWidth = 0;
     naturalHeight = 0;
+    if (boardEl) {
+      boardEl.style.removeProperty("width");
+      boardEl.style.removeProperty("height");
+    }
     clearMarkers();
     setDifficultyButtonState();
     renderFound();
@@ -271,12 +302,10 @@
     setStatus("遊戲開始，慢慢觀察右半邊圖片。");
   }
 
-  function calculateFocusScore(elapsedSec, difficulty) {
-    const config = FOCUS_TIME_TARGETS[difficulty] || FOCUS_TIME_TARGETS.easy;
-    const safeElapsed = Math.max(0, Number(elapsedSec) || 0);
-    const overTarget = Math.max(0, safeElapsed - config.targetSec);
-    const windowSec = Math.max(1, config.limitSec - config.targetSec);
-    return Math.max(0, Math.round((1 - Math.min(overTarget / windowSec, 1)) * 100));
+  function calculateFocusScore(missCount, invalidClickCount) {
+    const safeMisses = Math.max(0, Number(missCount) || 0);
+    const safeInvalidClicks = Math.max(0, Number(invalidClickCount) || 0);
+    return Math.max(0, Math.min(100, 100 - safeMisses * 8 - safeInvalidClicks * 4));
   }
 
   function finish() {
@@ -284,9 +313,10 @@
     setStartOverlayVisible(true);
     const elapsed = (performance.now() - startAt) / 1000;
     const total = getTotalDiffCount();
-    const score = calculateFocusScore(elapsed, currentDifficulty);
+    const missCount = clickLog.filter((entry) => entry.type === "miss").length;
+    const invalidClickCount = clickLog.filter((entry) => entry.type === "invalid_left").length;
+    const score = calculateFocusScore(missCount, invalidClickCount);
     const endedAt = new Date();
-    const timeConfig = FOCUS_TIME_TARGETS[currentDifficulty] || FOCUS_TIME_TARGETS.easy;
     const payload = {
       level_id: currentLevel ? currentLevel.id : null,
       difficulty: currentDifficulty,
@@ -298,15 +328,20 @@
       details: {
         started_at: startedAtIso,
         ended_at: endedAt.toISOString(),
-        time_target_sec: timeConfig.targetSec,
-        time_limit_sec: timeConfig.limitSec,
+        scoring_version: "v4_accuracy_completion_no_time_penalty",
+        scoring_basis: "misses_and_invalid_clicks",
+        miss_count: missCount,
+        invalid_click_count: invalidClickCount,
+        miss_penalty: 8,
+        invalid_click_penalty: 4,
         total_clicks: clickLog.length,
         clicks: [...clickLog],
       },
     };
     const pointAward = flow.awardGamePoints(sessionId, "focus", payload);
     if (resultEl) {
-      resultEl.textContent = `完成 ${difficultyLabel[currentDifficulty]}，用時 ${flow.formatDuration(elapsed)}，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
+      const invalidText = invalidClickCount > 0 ? `，左半邊點擊 ${invalidClickCount} 次` : "";
+      resultEl.textContent = `完成 ${difficultyLabel[currentDifficulty]}，誤點 ${missCount} 次${invalidText}，原遊戲分數 ${score}，本次獲得 ${pointAward.points} 點。`;
     }
     onComplete(payload);
   }
@@ -319,7 +354,13 @@
     const difficulty = entry.focus.difficulty
       ? `（${difficultyLabel[entry.focus.difficulty] || entry.focus.difficulty}）`
       : "";
-    resultEl.textContent = `上次結果${difficulty}：用時 ${flow.formatDuration(entry.focus.elapsed_sec)}，原遊戲分數 ${entry.focus.score}。`;
+    const details = entry.focus.details || {};
+    const missCount = Number(details.miss_count);
+    const invalidClickCount = Number(details.invalid_click_count);
+    const errorText = Number.isFinite(missCount)
+      ? `，誤點 ${missCount} 次${Number.isFinite(invalidClickCount) && invalidClickCount > 0 ? `，左半邊點擊 ${invalidClickCount} 次` : ""}`
+      : `，用時 ${flow.formatDuration(entry.focus.elapsed_sec)}`;
+    resultEl.textContent = `上次結果${difficulty}：找到 ${entry.focus.found}/${entry.focus.total} 個差異${errorText}，原遊戲分數 ${entry.focus.score}。`;
   }
 
   function detectHit(x, y) {
@@ -440,6 +481,7 @@
     imageEl.addEventListener("load", () => {
       naturalWidth = imageEl.naturalWidth || 0;
       naturalHeight = imageEl.naturalHeight || 0;
+      updateBoardFit();
       renderMarkers();
     });
 
@@ -453,6 +495,21 @@
     });
 
     imageEl.addEventListener("click", handleBoardClick);
+  }
+
+  window.addEventListener("resize", () => {
+    updateBoardFit();
+    renderMarkers();
+  });
+
+  if (boardEl && "ResizeObserver" in window) {
+    const resizeObserver = new ResizeObserver(() => {
+      updateBoardFit();
+      renderMarkers();
+    });
+    if (boardEl.parentElement) {
+      resizeObserver.observe(boardEl.parentElement);
+    }
   }
 
   const defaultDifficulty = hasPlayableDifficulty("easy") ? "easy" : pickDefaultDifficulty();

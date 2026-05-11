@@ -11,80 +11,106 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="focus-annotator.css?v=20260323" />
+    <link rel="stylesheet" href="focus-annotator.css?v=20260509" />
   </head>
   <body>
     <header class="annotator-banner">
       <img class="annotator-banner-icon" src="/static/images/ui/itri_CEL_A.jpg" alt="平台圖示" />
-      <h1 class="annotator-banner-title">失智統計分析平台</h1>
+      <h1 class="annotator-banner-title">找不同座標標註工具</h1>
       <span aria-hidden="true"></span>
     </header>
+
     <main class="annotator-page">
       <header class="annotator-header">
         <h1>找不同座標標註工具</h1>
-        <p>內部調校用途。點擊右半邊圖片建立差異區域座標。</p>
+        <p>拖入橫版圖片後標註差異。只有按下更新或另存時，才會寫入 focus-levels.js。</p>
       </header>
 
       <section class="annotator-panel">
+        <div id="imageDropZone" class="annotator-drop-zone">
+          <strong>拖放圖片到這裡</strong>
+          <span>圖片會上傳到 static/images/games/spot-the-diff，但不會自動覆蓋座標。</span>
+          <input id="imageFileInput" type="file" accept="image/*" />
+        </div>
+
         <div class="annotator-controls">
-          <label class="control-field">
+          <label class="control-field level-select-field">
+            <span>目前題目</span>
+            <select id="levelSelect"></select>
+          </label>
+
+          <label class="control-field image-path-field">
             <span>圖片路徑</span>
-            <input
-              id="imagePathInput"
-              type="text"
-              value="/static/images/games/spot-the-diff/img_0001.jpg"
-            />
+            <input id="imagePathInput" type="text" placeholder="/static/images/games/spot-the-diff/example.jpg" />
           </label>
           <button id="loadImageButton" type="button">載入圖片</button>
+
+          <label class="control-field level-field">
+            <span>題目 ID</span>
+            <input id="levelIdInput" type="text" value="spot-001" />
+          </label>
+
           <label class="control-field mode-field">
-            <span>形狀模式</span>
+            <span>標註位置</span>
+            <select id="annotationModeSelect">
+              <option value="right">直接標註右半邊</option>
+              <option value="left-to-right">標註左半邊，輸出到右半邊</option>
+              <option value="full">整張圖座標</option>
+            </select>
+          </label>
+
+          <label class="control-field mode-field">
+            <span>形狀</span>
             <select id="shapeModeSelect">
               <option value="circle">circle</option>
               <option value="rect">rect</option>
             </select>
           </label>
+
           <label class="control-field radius-field">
-            <span>圓半徑 (r)</span>
+            <span>圓形半徑 r</span>
             <input id="circleRadiusInput" type="number" min="1" step="1" value="40" />
           </label>
-          <button id="clearRegionsButton" type="button" class="danger">清空全部</button>
+
+          <button id="saveCurrentLevelButton" type="button">更新目前題目</button>
+          <button id="saveNewLevelButton" type="button">另存新題目</button>
+          <button id="clearRegionsButton" type="button" class="danger">清除畫面座標</button>
         </div>
 
         <div class="annotator-meta">
-          <span>原圖尺寸：<strong id="naturalSizeText">--</strong></span>
-          <span>最後點擊：<strong id="lastClickText">--</strong></span>
-          <span>狀態：<strong id="annotatorStatusText">等待點擊</strong></span>
+          <span>原始尺寸：<strong id="naturalSizeText">--</strong></span>
+          <span>最後座標：<strong id="lastClickText">--</strong></span>
+          <span>狀態：<strong id="annotatorStatusText">請先載入圖片</strong></span>
+          <span>寫入狀態：<strong id="saveStatusText">尚未寫入</strong></span>
         </div>
 
         <div class="annotator-board" id="annotatorBoard">
-          <img
-            id="annotatorImage"
-            class="annotator-image"
-            src="/static/images/games/spot-the-diff/img_0001.jpg"
-            alt="找不同合併圖"
-          />
+          <img id="annotatorImage" class="annotator-image" alt="找不同合併圖" />
           <div class="annotator-overlay" id="annotatorOverlay" aria-hidden="true">
             <div class="annotator-split-guide"></div>
           </div>
         </div>
-        <p class="board-hint">只接受右半邊點擊（x &gt;= 原圖寬度 / 2）。</p>
+        <p class="board-hint">
+          rect 模式請直接拖曳框選。左半標註模式會顯示左側參考框與右側實際儲存框，但只紀錄右半邊座標。
+        </p>
       </section>
 
       <section class="annotator-panel">
-        <h2>已建立區域</h2>
+        <h2>已標註座標</h2>
         <div id="regionList" class="region-list"></div>
       </section>
 
       <section class="annotator-panel">
-        <h2>匯出</h2>
+        <h2>focus-levels.js 預覽</h2>
         <div class="export-actions">
-          <button id="exportButton" type="button">產生匯出文字</button>
-          <button id="copyButton" type="button">複製到剪貼簿</button>
+          <button id="exportButton" type="button">重新產生預覽</button>
+          <button id="copyButton" type="button">複製內容</button>
         </div>
-        <textarea id="exportOutput" rows="12" readonly></textarea>
+        <textarea id="exportOutput" rows="14" readonly></textarea>
       </section>
     </main>
 
-    <script src="focus-annotator.js?v=20260318"></script>
+    <script src="focus-levels.js?v=20260509"></script>
+    <script src="focus-annotator.js?v=20260509"></script>
   </body>
 </html>

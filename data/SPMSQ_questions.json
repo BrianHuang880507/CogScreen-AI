@@ -1,92 +1,141 @@
 [
-  {
-    "id": "SPMSQ_Q1",
-    "text": "一年有幾個月？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["12", "十二"]
+    {
+        "id": "DAILY_Q1",
+        "category": "time_orientation",
+        "text": "今天星期幾？",
+        "tts_text": "今仔日是拜幾？",
+        "audio_url": "/static/questions/DAILY_Q1.mp3",
+        "scoring_rule": {
+            "type": "dynamic_date",
+            "expected": "weekday"
+        }
+    },
+    {
+        "id": "DAILY_Q2",
+        "category": "time_orientation",
+        "text": "現在是早上、下午，還是晚上？",
+        "tts_text": "這馬是早起、下晡，抑是暗時？",
+        "audio_url": "/static/questions/DAILY_Q2.mp3",
+        "scoring_rule": {
+            "type": "time_period",
+            "expected": ["早上", "上午", "中午", "下午", "晚上"]
+        }
+    },
+    {
+        "id": "DAILY_Q3",
+        "category": "daily_living",
+        "text": "今天吃飯了嗎？",
+        "tts_text": "你今仔日食飯矣未？",
+        "audio_url": "/static/questions/DAILY_Q3.mp3",
+        "scoring_rule": {
+            "type": "open_response",
+            "expected_behavior": "能回答是否已用餐，或說出不確定"
+        }
+    },
+    {
+        "id": "DAILY_Q4",
+        "category": "daily_memory",
+        "text": "今天吃了什麼？",
+        "tts_text": "你今仔日食啥物？",
+        "audio_url": "/static/questions/DAILY_Q4.mp3",
+        "scoring_rule": {
+            "type": "open_response",
+            "expected_behavior": "能說出具體食物、時間，或合理表示忘記"
+        }
+    },
+    {
+        "id": "DAILY_Q5",
+        "category": "medication_safety",
+        "text": "今天有沒有吃藥？",
+        "tts_text": "你今仔日有食藥仔無？",
+        "audio_url": "/static/questions/DAILY_Q5.mp3",
+        "scoring_rule": {
+            "type": "open_response",
+            "expected_behavior": "能回答已吃、還沒吃、沒有吃藥需求，或需要確認"
+        }
+    },
+    {
+        "id": "DAILY_Q6",
+        "category": "place_orientation",
+        "text": "你現在在哪裡？",
+        "tts_text": "你這馬佇佗位？",
+        "audio_url": "/static/questions/DAILY_Q6.mp3",
+        "scoring_rule": {
+            "type": "open_response",
+            "expected_behavior": "能說出家裡、房間、醫院、日照中心等合理地點"
+        }
+    },
+    {
+        "id": "DAILY_Q7",
+        "category": "place_orientation",
+        "text": "你還記得你家在哪裡嗎？",
+        "tts_text": "你閣會記得厝佇佗位無？",
+        "audio_url": "/static/questions/DAILY_Q7.mp3",
+        "scoring_rule": {
+            "type": "open_response",
+            "expected_behavior": "能說出大致地區、地址、附近地標，或表示需要家人協助"
+        }
+    },
+    {
+        "id": "DAILY_Q8",
+        "category": "personal_memory",
+        "text": "你記得家人的名字嗎？",
+        "tts_text": "你會記得厝內人的名無？",
+        "audio_url": "/static/questions/DAILY_Q8.mp3",
+        "scoring_rule": {
+            "type": "open_response",
+            "expected_behavior": "能說出家人稱謂或姓名"
+        }
+    },
+    {
+        "id": "DAILY_Q9",
+        "category": "safety_judgment",
+        "text": "如果你找不到回家的路，你會怎麼辦？",
+        "tts_text": "若是你揣無轉去厝的路，你欲按怎？",
+        "audio_url": "/static/questions/DAILY_Q9.mp3",
+        "scoring_rule": {
+            "type": "semantic",
+            "expected": [
+                "打電話給家人",
+                "找警察",
+                "找店員幫忙",
+                "請人協助",
+                "留在原地等家人"
+            ]
+        }
+    },
+    {
+        "id": "DAILY_Q10",
+        "category": "delayed_recall_setup",
+        "text": "請你記住這三個詞：蘋果、鑰匙、火車。等一下我會再問你。",
+        "tts_text": "請你共這三个詞記起來：蘋果、鎖匙、火車。等一下我會閣問你。",
+        "audio_url": "/static/questions/DAILY_Q10.mp3",
+        "scoring_rule": {
+            "type": "instruction_only",
+            "expected": ["蘋果", "鑰匙", "鎖匙", "火車"]
+        }
+    },
+    {
+        "id": "DAILY_Q11",
+        "category": "attention",
+        "text": "請你從 10 開始，每次減 2，往下數三次。",
+        "tts_text": "請你對十開始，逐擺減二，向下數三擺。",
+        "audio_url": "/static/questions/DAILY_Q11.mp3",
+        "scoring_rule": {
+            "type": "sequence",
+            "expected": ["8", "6", "4"]
+        }
+    },
+    {
+        "id": "DAILY_Q12",
+        "category": "delayed_recall",
+        "text": "剛剛請你記住的三個詞是什麼？",
+        "tts_text": "頭前請你記的三个詞是啥物？",
+        "audio_url": "/static/questions/DAILY_Q12.mp3",
+        "scoring_rule": {
+            "type": "contains_any_count",
+            "expected": ["蘋果", "鑰匙", "鎖匙", "火車"],
+            "score_by_count": true
+        }
     }
-  },
-  {
-    "id": "SPMSQ_Q2",
-    "text": "一星期有幾天？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["7", "七"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q3",
-    "text": "紅燈亮的時候，行人和車子通常應該怎麼做？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["停", "停止", "停下來", "等待", "等"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q4",
-    "text": "香蕉成熟時，外皮通常是什麼顏色？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["黃", "黃色"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q5",
-    "text": "口渴的時候，通常會喝什麼來補充水分？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["水", "開水", "白開水", "茶", "飲料"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q6",
-    "text": "白天照亮天空，讓我們看得見東西的是什麼？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["太陽", "日光", "陽光", "日頭"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q7",
-    "text": "煮飯時最常用的主食材料是什麼？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["米", "白米", "米飯", "飯"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q8",
-    "text": "打電話找一個人時，通常需要知道對方的什麼號碼？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["電話", "電話號碼", "手機", "手機號碼", "號碼"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q9",
-    "text": "一年四季裡，天氣通常最熱的是哪一季？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["夏", "夏天", "夏季"]
-    }
-  },
-  {
-    "id": "SPMSQ_Q10",
-    "text": "一雙筷子通常有幾支？",
-    "audio_url": "",
-    "scoring_rule": {
-      "type": "contains_any",
-      "expected": ["2", "二", "兩"]
-    }
-  }
 ]

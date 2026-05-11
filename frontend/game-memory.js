@@ -23,39 +23,45 @@
   );
 
   const DIFFICULTY_STORAGE_KEY = "memoryDifficulty";
-  const SYMBOL_POOL = ["茶", "花", "米", "魚", "杯", "車", "門", "鞋", "書", "傘", "燈", "鐘", "桃", "星"];
+  const memoryImage = (path) => `/static/images/games/classify/${path}`;
+  const CARD_POOL = [
+    { id: "fruit-kiwi", label: "奇異果", image: memoryImage("medium/food_0009.png") },
+    { id: "fruit-green-apple", label: "青蘋果", image: memoryImage("medium/food_0010.png") },
+    { id: "fruit-banana", label: "香蕉", image: memoryImage("medium/food_0012.png") },
+    { id: "fruit-pear", label: "梨子", image: memoryImage("medium/food_0027.png") },
+    { id: "fruit-pineapple", label: "鳳梨", image: memoryImage("medium/food_0028.png") },
+    { id: "fruit-grapes", label: "葡萄", image: memoryImage("medium/food_0031.png") },
+    { id: "fruit-mango", label: "芒果", image: memoryImage("medium/food_0032.png") },
+    { id: "fruit-strawberry", label: "草莓", image: memoryImage("medium/food_0033.png") },
+    { id: "fruit-lemon", label: "檸檬", image: memoryImage("medium/food_0034.png") },
+    { id: "fruit-peach", label: "水蜜桃", image: memoryImage("medium/food_0035.png") },
+    { id: "fruit-red-apple", label: "紅蘋果", image: memoryImage("medium/food_0051.png") },
+    { id: "fruit-watermelon", label: "西瓜", image: memoryImage("medium/food_0052.png") },
+    { id: "fruit-blueberry", label: "藍莓", image: memoryImage("medium/food_0053.png") },
+    { id: "fruit-cherry", label: "櫻桃", image: memoryImage("medium/food_0054.png") },
+    { id: "fruit-orange", label: "橘子", image: memoryImage("medium/food_0057.png") },
+    { id: "fruit-avocado", label: "酪梨", image: memoryImage("medium/food_0077.png") },
+  ];
 
-  // Completion-time scoring is intentionally minute-level for older adults.
+  // Scores prioritize completion accuracy; duration is recorded separately.
   const DIFFICULTY_CONFIG = {
     easy: {
       label: "簡單",
-      pairs: 6,
-      columns: 3,
-      timeTargetSec: 120,
-      timeLimitSec: 300,
-      guardMinMovesPerPair: 1.6,
-      guardMaxMovesPerPair: 4.2,
-      guardMinMultiplier: 0.5,
+      pairs: 4,
+      columns: 4,
+      wrongAttemptPenalty: 10,
     },
     medium: {
       label: "一般",
       pairs: 8,
       columns: 4,
-      timeTargetSec: 180,
-      timeLimitSec: 420,
-      guardMinMovesPerPair: 1.7,
-      guardMaxMovesPerPair: 4.5,
-      guardMinMultiplier: 0.5,
+      wrongAttemptPenalty: 8,
     },
     hard: {
       label: "挑戰",
       pairs: 10,
       columns: 5,
-      timeTargetSec: 240,
-      timeLimitSec: 540,
-      guardMinMovesPerPair: 1.8,
-      guardMaxMovesPerPair: 4.8,
-      guardMinMultiplier: 0.5,
+      wrongAttemptPenalty: 6,
     },
   };
 
@@ -191,11 +197,11 @@
 
   function buildDeck() {
     const config = getDifficultyConfig();
-    const chosen = shuffle(SYMBOL_POOL).slice(0, config.pairs);
+    const chosen = shuffle(CARD_POOL).slice(0, config.pairs);
     deck = shuffle(
-      chosen.flatMap((symbol, pairId) => [
-        { pairId, symbol },
-        { pairId, symbol },
+      chosen.flatMap((card, pairId) => [
+        { pairId, ...card },
+        { pairId, ...card },
       ]),
     );
   }
@@ -218,7 +224,18 @@
 
       const back = document.createElement("span");
       back.className = "memory-card-back";
-      back.textContent = card.symbol;
+      const image = document.createElement("img");
+      image.className = "memory-card-image";
+      image.src = card.image;
+      image.alt = card.label;
+      image.loading = "eager";
+      image.decoding = "async";
+      image.addEventListener("error", () => {
+        image.remove();
+        back.textContent = card.label;
+        back.classList.add("memory-card-back-fallback");
+      });
+      back.appendChild(image);
 
       btn.appendChild(front);
       btn.appendChild(back);
@@ -282,39 +299,18 @@
     }, 1800);
   }
 
-  function calculateMemoryScore(elapsedSec, movesCount, pairsTotal, config) {
+  function calculateMemoryScore(wrongAttempts, movesCount, pairsTotal, config) {
     const safePairs = Math.max(1, Number(pairsTotal) || 1);
     const safeMoves = Math.max(1, Number(movesCount) || 1);
-    const safeElapsed = Math.max(0, Number(elapsedSec) || 0);
-    const targetSec = Math.max(1, Number(config.timeTargetSec) || 1);
-    const limitSec = Math.max(targetSec + 1, Number(config.timeLimitSec) || targetSec + 1);
-    const overTarget = Math.max(0, safeElapsed - targetSec);
-    const timeScore = Math.max(
-      0,
-      Math.round((1 - Math.min(overTarget / (limitSec - targetSec), 1)) * 100),
-    );
-    const minMovesPerPair = Math.max(1, Number(config.guardMinMovesPerPair) || 1);
-    const maxMovesPerPair = Math.max(
-      minMovesPerPair + 0.01,
-      Number(config.guardMaxMovesPerPair) || minMovesPerPair + 0.01,
-    );
-    const minMultiplier = Math.max(0.2, Math.min(1, Number(config.guardMinMultiplier) || 0.5));
+    const safeWrongAttempts = Math.max(0, Number(wrongAttempts) || 0);
+    const wrongAttemptPenalty = Math.max(1, Number(config.wrongAttemptPenalty) || 8);
     const movesPerPair = safeMoves / safePairs;
-
-    let guardMultiplier = 1;
-    if (movesPerPair > minMovesPerPair) {
-      const guardRatio = Math.min(
-        (movesPerPair - minMovesPerPair) / (maxMovesPerPair - minMovesPerPair),
-        1,
-      );
-      guardMultiplier = 1 - guardRatio * (1 - minMultiplier);
-    }
-
-    const score = Math.max(0, Math.min(100, Math.round(timeScore * guardMultiplier)));
+    const accuracyRate = Math.round((safePairs / safeMoves) * 100);
+    const score = Math.max(0, Math.min(100, 100 - safeWrongAttempts * wrongAttemptPenalty));
     return {
       score,
-      timeScore,
-      guardMultiplier: Number(guardMultiplier.toFixed(3)),
+      accuracyRate: Math.max(0, Math.min(100, accuracyRate)),
+      wrongAttemptPenalty,
       movesPerPair: Number(movesPerPair.toFixed(2)),
     };
   }
@@ -328,7 +324,7 @@
     const elapsed = startAtMs ? (Date.now() - startAtMs) / 1000 : 0;
     const matchedPairs = Math.floor(matched.size / 2);
     const wrongAttempts = Math.max(0, moves - matchedPairs);
-    const scoreResult = calculateMemoryScore(elapsed, moves, config.pairs, config);
+    const scoreResult = calculateMemoryScore(wrongAttempts, moves, config.pairs, config);
     const endedAt = new Date();
     const payload = {
       difficulty: selectedDifficulty,
@@ -343,11 +339,10 @@
         ended_at: endedAt.toISOString(),
         columns: config.columns,
         wrong_attempts: wrongAttempts,
-        scoring_version: "v3_minute_completion_time",
-        time_target_sec: config.timeTargetSec,
-        time_limit_sec: config.timeLimitSec,
-        time_score: scoreResult.timeScore,
-        guard_multiplier: scoreResult.guardMultiplier,
+        scoring_version: "v4_accuracy_completion_no_time_penalty",
+        scoring_basis: "wrong_attempts_only",
+        wrong_attempt_penalty: scoreResult.wrongAttemptPenalty,
+        accuracy_rate: scoreResult.accuracyRate,
         moves_per_pair: scoreResult.movesPerPair,
         attempts: [...attemptLog],
       },
@@ -355,7 +350,7 @@
     const pointAward = flow.awardGamePoints(sessionId, "memory", payload);
 
     if (resultEl) {
-      resultEl.textContent = `完成配對，用時 ${flow.formatDuration(elapsed)}，翻牌 ${moves} 次，原遊戲分數 ${scoreResult.score}，本次獲得 ${pointAward.points} 點。`;
+      resultEl.textContent = `完成配對，錯誤配對 ${wrongAttempts} 次，嘗試 ${moves} 次，原遊戲分數 ${scoreResult.score}，本次獲得 ${pointAward.points} 點。`;
     }
 
     onComplete(payload);
@@ -386,8 +381,10 @@
       at: new Date().toISOString(),
       first_index: firstIndex,
       second_index: secondIndex,
-      first_symbol: first ? first.symbol : null,
-      second_symbol: second ? second.symbol : null,
+      first_symbol: first ? first.label : null,
+      second_symbol: second ? second.label : null,
+      first_image: first ? first.image : null,
+      second_image: second ? second.image : null,
       is_match: isMatch,
     });
 
@@ -426,7 +423,7 @@
     if (resultEl) {
       resultEl.textContent = "按開始後，翻牌找出相同內容。";
     }
-    setStatus(`已選擇 ${getDifficultyConfig().label}，按開始後開始計時。`);
+    setStatus(`已選擇 ${getDifficultyConfig().label}，按開始後開始遊戲。`);
   }
 
   function startGame() {
@@ -453,7 +450,9 @@
       return;
     }
     const difficultyLabel = DIFFICULTY_CONFIG[entry.memory.difficulty || ""]?.label || "--";
-    resultEl.textContent = `上次結果：${difficultyLabel}，完成 ${entry.memory.pairs_matched}/${entry.memory.pairs_total} 組，原遊戲分數 ${entry.memory.score}。`;
+    const wrongAttempts = Number(entry.memory.details?.wrong_attempts);
+    const wrongText = Number.isFinite(wrongAttempts) ? `，錯誤配對 ${wrongAttempts} 次` : "";
+    resultEl.textContent = `上次結果：${difficultyLabel}，完成 ${entry.memory.pairs_matched}/${entry.memory.pairs_total} 組${wrongText}，原遊戲分數 ${entry.memory.score}。`;
   }
 
   function initDifficulty() {
